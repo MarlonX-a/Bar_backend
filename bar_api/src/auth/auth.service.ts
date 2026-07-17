@@ -26,7 +26,7 @@ export class AuthService {
         return this.usersService.create({
             ...registerDto,
             contrasenia: hashedContrasenia,
-            idRol: 1,
+            rol: { idRol: 1 } as any,
         })
     }
 
@@ -49,7 +49,7 @@ export class AuthService {
         const payload = {
             correo: existe.correo,
             sub: existe.idUser,
-            idRol: existe.idRol,
+            idRol: existe.rol?.idRol ?? 1,
         }
 
         const token = this.jwtService.signAsync(payload);
