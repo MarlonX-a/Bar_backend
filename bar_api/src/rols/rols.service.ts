@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { CreateRolDto } from './dto/create-rol.dto';
 import { UpdateRolDto } from './dto/update-rol.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -7,11 +7,15 @@ import { Repository } from 'typeorm';
 
 @Injectable()
 export class RolsService {
+  private readonly adminRol: number = 4;
   constructor(
     @InjectRepository(Rol)
-    private rolRepository: Repository<Rol>
+    private rolRepository: Repository<Rol>,
   ){}
-  async create(createRolDto: CreateRolDto) {
+  async create(createRolDto: CreateRolDto, userRol: number) {
+    if (userRol !== this.adminRol) {
+      throw new BadRequestException('Solo los administradores pueden crear roles');
+    }
     const existeRol = await this.rolRepository.findOne({
       where: {nombreRol: createRolDto.nombreRol
       }});
@@ -25,11 +29,17 @@ export class RolsService {
     return await this.rolRepository.save(nuevoRol);
   }
 
-  async findAll() {
+  async findAll(userRol: number) {
+    if (userRol !== this.adminRol) {
+      throw new BadRequestException('Solo los administradores pueden ver todos los roles');
+    } 
     return await this.rolRepository.find();
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, userRol: number) {
+    if (userRol !== this.adminRol) {
+      throw new BadRequestException('Solo los administradores pueden ver un rol específico');
+    }
     const existeRol = await this.rolRepository.findOne({
       where: { idRol: id }
     })
@@ -42,28 +52,40 @@ export class RolsService {
     return existeRol;
   }
 
-  async update(id: number, updateRolDto: UpdateRolDto) {
+  async update(id: number, updateRolDto: UpdateRolDto, userRol: number) {
+    if (userRol !== this.adminRol) {
+      throw new BadRequestException('Solo los administradores pueden actualizar roles');
+    }
     const existeRol = await this.rolRepository.findOne({
       where: { idRol: id }
     });
 
-    if (existeRol && updateRolDto.nombreRol !== existeRol.nombreRol) {
+    if (!existeRol) {
+      throw new NotFoundException(
+        `El rol con el id ${id} no existe`
+      );
+    }
+
+    if (updateRolDto.nombreRol && updateRolDto.nombreRol !== existeRol.nombreRol) {
       const nombreExistente = await this.rolRepository.findOne({
-        where: { nombreRol: updateRolDto.nombreRol}
-      })
+        where: { nombreRol: updateRolDto.nombreRol }
+      });
 
       if (nombreExistente) {
-        throw new NotFoundException(
+        throw new BadRequestException(
           `El rol con el nombre ${updateRolDto.nombreRol} ya existe`
-        )
+        );
       }
-
-      const updateRol = this.rolRepository.merge(existeRol, updateRolDto);
-      return await this.rolRepository.save(updateRol);
     }
+
+    const updatedRol = this.rolRepository.merge(existeRol, updateRolDto);
+    return await this.rolRepository.save(updatedRol);
   }
 
-  async remove(id: number) {
+  async remove(id: number, userRol: number) {
+    if (userRol !== this.adminRol) {
+      throw new BadRequestException('Solo los administradores pueden eliminar roles');
+    }
     const existeRol = await this.rolRepository.findOne({
       where: { idRol: id}
     })

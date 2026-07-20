@@ -26,7 +26,7 @@ export class AuthService {
         return this.usersService.create({
             ...registerDto,
             contrasenia: hashedContrasenia,
-            rol: { idRol: 1 } as any,
+            rol: { idRol: 2 } as any,
         })
     }
 
