@@ -1,5 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToOne } from 'typeorm';
 import { Rol } from 'src/rols/entities/rol.entity';
+import { Perfil } from 'src/perfil/entities/perfil.entity';
 
 @Entity('users')
 export class User {
@@ -21,4 +22,7 @@ export class User {
     @ManyToOne(() => Rol, (rol) => rol.users)
     @JoinColumn({ name: 'idRol' })
     rol: Rol;
+
+    @OneToOne(() => Perfil, (perfil) => perfil.user)
+    perfil: Perfil;
 }
