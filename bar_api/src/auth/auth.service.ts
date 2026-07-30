@@ -22,12 +22,13 @@ export class AuthService {
         };
 
         const hashedContrasenia = await bcrypt.hash(registerDto.contrasenia, 10);
-
-        return this.usersService.create({
+        this.usersService.create({
             ...registerDto,
             contrasenia: hashedContrasenia,
             rol: { idRol: 2 } as any,
         })
+
+        return { message: `usuario registrado correctamente` }
     }
 
     async login(loginDto: LoginDto) {

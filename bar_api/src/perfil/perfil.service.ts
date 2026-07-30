@@ -4,7 +4,7 @@ import { UpdatePerfilDto } from './dto/update-perfil.dto';
 
 @Injectable()
 export class PerfilService {
-  create(createPerfilDto: CreatePerfilDto) {
+  create(createPerfilDto: CreatePerfilDto, idUser: number) {
     return 'This action adds a new perfil';
   }
 

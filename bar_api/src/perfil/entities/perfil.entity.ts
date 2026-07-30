@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, createDateColumn, UpdateDateColumn, OneToOne, JoinColumn} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToOne, JoinColumn} from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 
 @Entity('perfiles')
@@ -21,7 +21,7 @@ export class Perfil {
     @Column({ default: true })
     estado: boolean;
 
-    @createDateColumn()
+    @CreateDateColumn()
     fechaDeCreacion: Date;
 
     @UpdateDateColumn()

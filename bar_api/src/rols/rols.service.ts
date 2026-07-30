@@ -7,7 +7,7 @@ import { Repository } from 'typeorm';
 
 @Injectable()
 export class RolsService {
-  private readonly adminRol: number = 4;
+  private readonly adminRol: number = 1;
   constructor(
     @InjectRepository(Rol)
     private rolRepository: Repository<Rol>,
