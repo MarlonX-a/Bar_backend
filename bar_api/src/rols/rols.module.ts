@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { RolsService } from './rols.service';
 import { RolsController } from './rols.controller';
 import { Rol } from './entities/rol.entity';
-import { TypeOrmModule } from '@nestjs/typeorm/dist/typeorm.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Rol])],

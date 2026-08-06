@@ -1,9 +1,20 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Request } from '@nestjs/common';
-import { PerfilService } from './perfil.service';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
+import type { AuthenticatedRequest } from '../auth/interfaces/authenticated-request.interface';
+import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { CreatePerfilDto } from './dto/create-perfil.dto';
 import { UpdatePerfilDto } from './dto/update-perfil.dto';
-import { UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from 'src/auth/jwt/jwt-auth.guard';
+import { PerfilService } from './perfil.service';
 
 @Controller('perfil')
 export class PerfilController {
@@ -11,32 +22,38 @@ export class PerfilController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Request() req, @Body() createPerfilDto: CreatePerfilDto) {
-    const idUser = req.user.idUser;
-    return this.perfilService.create(createPerfilDto, idUser);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get()
-  findAll() {
-    return this.perfilService.findAll();
+  create(
+    @Request() req: AuthenticatedRequest,
+    @Body() createPerfilDto: CreatePerfilDto,
+  ) {
+    return this.perfilService.create(createPerfilDto, req.user.idUser);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  findOne(@Param('id') id: number) {
-    return this.perfilService.findOne(+id);
+  findOne(
+    @Request() req: AuthenticatedRequest,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.perfilService.findOne(id, req.user.idUser);
   }
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
-  update(@Param('id') id: number, @Body() updatePerfilDto: UpdatePerfilDto) {
-    return this.perfilService.update(+id, updatePerfilDto);
+  update(
+    @Request() req: AuthenticatedRequest,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updatePerfilDto: UpdatePerfilDto,
+  ) {
+    return this.perfilService.update(id, updatePerfilDto, req.user.idUser);
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  remove(@Param('id') id: number) {
-    return this.perfilService.remove(+id);
+  remove(
+    @Request() req: AuthenticatedRequest,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.perfilService.remove(id, req.user.idUser);
   }
 }

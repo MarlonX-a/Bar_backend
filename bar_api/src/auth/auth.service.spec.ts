@@ -1,23 +1,31 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
+import { Test, TestingModule } from '@nestjs/testing';
+import { Rol } from '../rols/entities/rol.entity';
+import { DEFAULT_USER_ROLE_ID } from '../rols/rol.constants';
+import { User } from '../users/entities/user.entity';
+import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
-import { UsersService } from 'src/users/users.service';
-import { RegisterDto } from './dto/register.dto';
 
 describe('AuthService', () => {
   let service: AuthService;
-  let usersService: UsersService;
+  let usersServiceMock: jest.Mocked<
+    Pick<UsersService, 'findByEmail' | 'create'>
+  >;
 
   beforeEach(async () => {
+    usersServiceMock = {
+      findByEmail: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockResolvedValue(Object.assign(new User(), {
+        idUser: 1,
+      })),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         {
           provide: UsersService,
-          useValue: {
-            findByEmail: jest.fn().mockResolvedValue(null),
-            create: jest.fn().mockResolvedValue({ idUser: 1 }),
-          },
+          useValue: usersServiceMock,
         },
         {
           provide: JwtService,
@@ -29,25 +37,24 @@ describe('AuthService', () => {
     }).compile();
 
     service = module.get<AuthService>(AuthService);
-    usersService = module.get<UsersService>(UsersService);
   });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
 
-  it('should assign role id 1 when registering a new user', async () => {
+  it('should await persistence and assign the default user role', async () => {
     await service.register({
       correo: 'test@example.com',
       contrasenia: '12345678',
-    } as RegisterDto);
+    });
 
-    expect(usersService.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        correo: 'test@example.com',
-        contrasenia: expect.any(String),
-        rol: { idRol: 1 },
-      }),
-    );
+    expect(usersServiceMock.create).toHaveBeenCalledTimes(1);
+    const [createdUser] = usersServiceMock.create.mock.calls[0];
+
+    expect(createdUser.correo).toBe('test@example.com');
+    expect(typeof createdUser.contrasenia).toBe('string');
+    expect(createdUser.contrasenia).not.toBe('12345678');
+    expect((createdUser.rol as Rol).idRol).toBe(DEFAULT_USER_ROLE_ID);
   });
 });

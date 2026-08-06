@@ -1,8 +1,20 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
-import { RolsService } from './rols.service';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
+import type { AuthenticatedRequest } from '../auth/interfaces/authenticated-request.interface';
+import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
 import { CreateRolDto } from './dto/create-rol.dto';
 import { UpdateRolDto } from './dto/update-rol.dto';
-import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
+import { RolsService } from './rols.service';
 
 @Controller('rols')
 export class RolsController {
@@ -10,38 +22,44 @@ export class RolsController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Request() req, @Body() createRolDto: CreateRolDto) {
-    const userRol = req.user.idRol;
-
-    return this.rolsService.create(createRolDto, userRol);
+  create(
+    @Request() req: AuthenticatedRequest,
+    @Body() createRolDto: CreateRolDto,
+  ) {
+    return this.rolsService.create(createRolDto, req.user.idRol);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get()
-  findAll(@Request() req) {
-    const userRol = req.user.idRol;
-    return this.rolsService.findAll(userRol);
+  findAll(@Request() req: AuthenticatedRequest) {
+    return this.rolsService.findAll(req.user.idRol);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  findOne(@Request() req, @Param('id') id: number) {
-    const userRol = req.user.idRol;
-    console.log('[RolsController] findOne userRol =', userRol,);
-    return this.rolsService.findOne(+id, userRol);
+  findOne(
+    @Request() req: AuthenticatedRequest,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.rolsService.findOne(id, req.user.idRol);
   }
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
-  update(@Request() req, @Param('id') id: number, @Body() updateRolDto: UpdateRolDto) {
-    const userRol = req.user.idRol;
-    return this.rolsService.update(+id, updateRolDto, userRol);
+  update(
+    @Request() req: AuthenticatedRequest,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateRolDto: UpdateRolDto,
+  ) {
+    return this.rolsService.update(id, updateRolDto, req.user.idRol);
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  remove(@Request() req, @Param('id') id: number) {
-    const userRol = req.user.idRol;
-    return this.rolsService.remove(+id, userRol);
+  remove(
+    @Request() req: AuthenticatedRequest,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.rolsService.remove(id, req.user.idRol);
   }
 }

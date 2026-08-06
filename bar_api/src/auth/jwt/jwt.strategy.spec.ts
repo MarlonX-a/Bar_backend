@@ -1,5 +1,7 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Rol } from '../../rols/entities/rol.entity';
+import { User } from '../../users/entities/user.entity';
 import { UsersService } from '../../users/users.service';
 import { JwtStrategy } from './jwt.strategy';
 
@@ -8,9 +10,9 @@ describe('JwtStrategy', () => {
     getOrThrow: jest.fn().mockReturnValue('test-secret'),
   } as unknown as ConfigService;
 
-  const usersService = {
+  const usersService: jest.Mocked<Pick<UsersService, 'findByEmail'>> = {
     findByEmail: jest.fn(),
-  } as unknown as jest.Mocked<Pick<UsersService, 'findByEmail'>>;
+  };
 
   let strategy: JwtStrategy;
 
@@ -23,14 +25,21 @@ describe('JwtStrategy', () => {
   });
 
   it('should expose the current database role in req.user', async () => {
-    usersService.findByEmail.mockResolvedValue({
-      idUser: 2,
-      correo: 'admin@example.com',
-      rol: { idRol: 4 },
-    } as any);
+    const role = Object.assign(new Rol(), { idRol: 4 });
+    usersService.findByEmail.mockResolvedValue(
+      Object.assign(new User(), {
+        idUser: 2,
+        correo: 'admin@example.com',
+        rol: role,
+      }),
+    );
 
     await expect(
-      strategy.validate({ correo: 'admin@example.com', idRol: 2 }),
+      strategy.validate({
+        sub: 2,
+        correo: 'admin@example.com',
+        idRol: 2,
+      }),
     ).resolves.toEqual({
       idUser: 2,
       correo: 'admin@example.com',
@@ -39,14 +48,20 @@ describe('JwtStrategy', () => {
   });
 
   it('should reject a user without an assigned role', async () => {
-    usersService.findByEmail.mockResolvedValue({
-      idUser: 2,
-      correo: 'admin@example.com',
-      rol: undefined,
-    } as any);
+    usersService.findByEmail.mockResolvedValue(
+      Object.assign(new User(), {
+        idUser: 2,
+        correo: 'admin@example.com',
+        rol: undefined,
+      }),
+    );
 
     await expect(
-      strategy.validate({ correo: 'admin@example.com' }),
+      strategy.validate({
+        sub: 2,
+        correo: 'admin@example.com',
+        idRol: 2,
+      }),
     ).rejects.toThrow(
       new UnauthorizedException('El usuario no tiene un rol asignado'),
     );
