@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PerfilController } from './perfil.controller';
 import { PerfilService } from './perfil.service';
+import { RolsService } from '../rols/rols.service';
 
 describe('PerfilController', () => {
   let controller: PerfilController;
@@ -17,6 +18,10 @@ describe('PerfilController', () => {
             update: jest.fn(),
             remove: jest.fn(),
           },
+        },
+        {
+          provide: RolsService,
+          useValue: { findByCodeWithPermissions: jest.fn() },
         },
       ],
     }).compile();

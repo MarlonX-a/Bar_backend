@@ -1,6 +1,5 @@
 import {
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -9,7 +8,6 @@ import { Repository } from 'typeorm';
 import { CreateRolDto } from './dto/create-rol.dto';
 import { UpdateRolDto } from './dto/update-rol.dto';
 import { Rol } from './entities/rol.entity';
-import { ADMIN_ROLE_CODE } from './rol.constants';
 
 @Injectable()
 export class RolsService {
@@ -18,8 +16,7 @@ export class RolsService {
     private readonly rolRepository: Repository<Rol>,
   ) {}
 
-  async create(createRolDto: CreateRolDto, userRolCode: string) {
-    this.assertAdmin(userRolCode, 'crear roles');
+  async create(createRolDto: CreateRolDto) {
 
     const existeRol = await this.rolRepository.findOne({
       where: { nombreRol: createRolDto.nombreRol },
@@ -38,18 +35,15 @@ export class RolsService {
     return this.rolRepository.save(this.rolRepository.create(createRolDto));
   }
 
-  async findAll(userRolCode: string) {
-    this.assertAdmin(userRolCode, 'ver todos los roles');
+  async findAll() {
     return this.rolRepository.find();
   }
 
-  async findOne(id: number, userRolCode: string) {
-    this.assertAdmin(userRolCode, 'ver un rol específico');
+  async findOne(id: number) {
     return this.findExisting(id);
   }
 
-  async update(id: number, updateRolDto: UpdateRolDto, userRolCode: string) {
-    this.assertAdmin(userRolCode, 'actualizar roles');
+  async update(id: number, updateRolDto: UpdateRolDto) {
     const existeRol = await this.findExisting(id);
 
     if (
@@ -87,8 +81,7 @@ export class RolsService {
     );
   }
 
-  async remove(id: number, userRolCode: string) {
-    this.assertAdmin(userRolCode, 'eliminar roles');
+  async remove(id: number) {
     const existeRol = await this.findExisting(id);
     await this.rolRepository.remove(existeRol);
     return { message: `El rol con el id ${id} ha sido eliminado` };
@@ -102,12 +95,15 @@ export class RolsService {
     return rol;
   }
 
-  private assertAdmin(userRolCode: string, action: string): void {
-    if (userRolCode !== ADMIN_ROLE_CODE) {
-      throw new ForbiddenException(
-        `Solo los administradores pueden ${action}`,
-      );
+  async findByCodeWithPermissions(codigoRol: string): Promise<Rol> {
+    const rol = await this.rolRepository.findOne({
+      where: { codigoRol },
+      relations: { permissions: true },
+    });
+    if (!rol) {
+      throw new NotFoundException(`El rol ${codigoRol} no existe`);
     }
+    return rol;
   }
 
   private async findExisting(id: number): Promise<Rol> {

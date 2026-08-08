@@ -12,6 +12,9 @@ import {
 } from '@nestjs/common';
 import type { AuthenticatedRequest } from '../auth/interfaces/authenticated-request.interface';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/authorization/permissions.guard';
+import { RequirePermissions } from '../auth/authorization/permissions.decorator';
+import { PermissionCode } from '../rols/permission.constants';
 import { CreatePerfilDto } from './dto/create-perfil.dto';
 import { UpdatePerfilDto } from './dto/update-perfil.dto';
 import { PerfilService } from './perfil.service';
@@ -20,7 +23,8 @@ import { PerfilService } from './perfil.service';
 export class PerfilController {
   constructor(private readonly perfilService: PerfilService) {}
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PermissionCode.PROFILE_WRITE_SELF)
   @Post()
   create(
     @Request() req: AuthenticatedRequest,
@@ -29,7 +33,8 @@ export class PerfilController {
     return this.perfilService.create(createPerfilDto, req.user.idUser);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PermissionCode.PROFILE_READ_SELF)
   @Get(':id')
   findOne(
     @Request() req: AuthenticatedRequest,
@@ -38,7 +43,8 @@ export class PerfilController {
     return this.perfilService.findOne(id, req.user.idUser);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PermissionCode.PROFILE_WRITE_SELF)
   @Patch(':id')
   update(
     @Request() req: AuthenticatedRequest,
@@ -48,7 +54,8 @@ export class PerfilController {
     return this.perfilService.update(id, updatePerfilDto, req.user.idUser);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PermissionCode.PROFILE_WRITE_SELF)
   @Delete(':id')
   remove(
     @Request() req: AuthenticatedRequest,

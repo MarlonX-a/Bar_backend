@@ -7,11 +7,12 @@ import {
   ParseIntPipe,
   Patch,
   Post,
-  Request,
   UseGuards,
 } from '@nestjs/common';
-import type { AuthenticatedRequest } from '../auth/interfaces/authenticated-request.interface';
 import { JwtAuthGuard } from '../auth/jwt/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/authorization/permissions.guard';
+import { RequirePermissions } from '../auth/authorization/permissions.decorator';
+import { PermissionCode } from './permission.constants';
 import { CreateRolDto } from './dto/create-rol.dto';
 import { UpdateRolDto } from './dto/update-rol.dto';
 import { RolsService } from './rols.service';
@@ -20,46 +21,45 @@ import { RolsService } from './rols.service';
 export class RolsController {
   constructor(private readonly rolsService: RolsService) {}
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PermissionCode.ROLE_MANAGE)
   @Post()
-  create(
-    @Request() req: AuthenticatedRequest,
-    @Body() createRolDto: CreateRolDto,
-  ) {
-    return this.rolsService.create(createRolDto, req.user.codigoRol);
+  create(@Body() createRolDto: CreateRolDto) {
+    return this.rolsService.create(createRolDto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PermissionCode.ROLE_MANAGE)
   @Get()
-  findAll(@Request() req: AuthenticatedRequest) {
-    return this.rolsService.findAll(req.user.codigoRol);
+  findAll() {
+    return this.rolsService.findAll();
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PermissionCode.ROLE_MANAGE)
   @Get(':id')
   findOne(
-    @Request() req: AuthenticatedRequest,
     @Param('id', ParseIntPipe) id: number,
   ) {
-    return this.rolsService.findOne(id, req.user.codigoRol);
+    return this.rolsService.findOne(id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PermissionCode.ROLE_MANAGE)
   @Patch(':id')
   update(
-    @Request() req: AuthenticatedRequest,
     @Param('id', ParseIntPipe) id: number,
     @Body() updateRolDto: UpdateRolDto,
   ) {
-    return this.rolsService.update(id, updateRolDto, req.user.codigoRol);
+    return this.rolsService.update(id, updateRolDto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PermissionCode.ROLE_MANAGE)
   @Delete(':id')
   remove(
-    @Request() req: AuthenticatedRequest,
     @Param('id', ParseIntPipe) id: number,
   ) {
-    return this.rolsService.remove(id, req.user.codigoRol);
+    return this.rolsService.remove(id);
   }
 }
