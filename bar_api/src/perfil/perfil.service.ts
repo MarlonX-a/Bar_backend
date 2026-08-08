@@ -15,9 +15,16 @@ export class PerfilService {
   constructor(
     @InjectRepository(Perfil)
     private readonly perfilRepository: Repository<Perfil>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
   ) {}
 
   async create(createPerfilDto: CreatePerfilDto, idUser: number) {
+    const user = await this.userRepository.findOne({ where: { idUser } });
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
     const perfilExistente = await this.perfilRepository.findOne({
       where: { user: { idUser } },
     });
@@ -28,10 +35,13 @@ export class PerfilService {
 
     const perfil = this.perfilRepository.create({
       ...createPerfilDto,
-      user: { idUser } as User,
+      user,
     });
 
-    return this.perfilRepository.save(perfil);
+    const perfilGuardado = await this.perfilRepository.save(perfil);
+    user.perfilCompletado = true;
+    await this.userRepository.save(user);
+    return perfilGuardado;
   }
 
   async findOne(id: number, idUser: number) {
@@ -51,6 +61,11 @@ export class PerfilService {
   async remove(id: number, idUser: number) {
     const perfil = await this.findOwned(id, idUser);
     await this.perfilRepository.remove(perfil);
+    const user = await this.userRepository.findOne({ where: { idUser } });
+    if (user) {
+      user.perfilCompletado = false;
+      await this.userRepository.save(user);
+    }
     return { message: 'Perfil eliminado correctamente' };
   }
 

@@ -1,23 +1,33 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn , OneToMany} from 'typeorm';
-import { User } from 'src/users/entities/user.entity';
- 
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { User } from '../../users/entities/user.entity';
+
 @Entity('rols')
 export class Rol {
-    @PrimaryGeneratedColumn()
-    idRol: number;
+  @PrimaryGeneratedColumn({ name: 'id_rol' })
+  idRol: number;
 
-    @Column()
-    nombreRol: string;
+  @Column({ name: 'codigo_rol', unique: true })
+  codigoRol: string;
 
-    @Column()
-    descripcionRol: string;
+  @Column({ name: 'nombre_rol' })
+  nombreRol: string;
 
-    @CreateDateColumn()
-    fechaCreacion: Date;
+  @Column({ name: 'descripcion_rol' })
+  descripcionRol: string;
 
-    @UpdateDateColumn()
-    fechaActualizacion: Date;
+  @CreateDateColumn({ name: 'fecha_creacion', type: 'timestamptz' })
+  fechaCreacion: Date;
 
-    @OneToMany(() => User, (user) => user.rol)
-    users: User[];
+  @UpdateDateColumn({ name: 'fecha_actualizacion', type: 'timestamptz' })
+  fechaActualizacion: Date;
+
+  @OneToMany(() => User, (user) => user.rol)
+  users: User[];
 }

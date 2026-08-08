@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Perfil } from './entities/perfil.entity';
 import { PerfilService } from './perfil.service';
+import { User } from '../users/entities/user.entity';
 
 describe('PerfilService', () => {
   let service: PerfilService;
@@ -16,6 +17,15 @@ describe('PerfilService', () => {
             create: jest.fn(),
             findOne: jest.fn(),
             remove: jest.fn(),
+            save: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(User),
+          useValue: {
+            findOne: jest.fn().mockResolvedValue(
+              Object.assign(new User(), { idUser: 1 }),
+            ),
             save: jest.fn(),
           },
         },

@@ -17,6 +17,15 @@ export class UsersService {
     });
   }
 
+  findByEmailForAuthentication(correo: string) {
+    return this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.passwordHash')
+      .leftJoinAndSelect('user.rol', 'rol')
+      .where('user.correo = :correo', { correo })
+      .getOne();
+  }
+
   create(user: Partial<User>) {
     return this.userRepository.save(user);
   }

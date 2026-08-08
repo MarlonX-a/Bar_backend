@@ -25,11 +25,12 @@ describe('JwtStrategy', () => {
   });
 
   it('should expose the current database role in req.user', async () => {
-    const role = Object.assign(new Rol(), { idRol: 4 });
+    const role = Object.assign(new Rol(), { idRol: 4, codigoRol: 'ADMIN' });
     usersService.findByEmail.mockResolvedValue(
       Object.assign(new User(), {
         idUser: 2,
         correo: 'admin@example.com',
+        activo: true,
         rol: role,
       }),
     );
@@ -38,12 +39,13 @@ describe('JwtStrategy', () => {
       strategy.validate({
         sub: 2,
         correo: 'admin@example.com',
-        idRol: 2,
+        codigoRol: 'CUSTOMER',
       }),
     ).resolves.toEqual({
       idUser: 2,
       correo: 'admin@example.com',
       idRol: 4,
+      codigoRol: 'ADMIN',
     });
   });
 
@@ -52,6 +54,7 @@ describe('JwtStrategy', () => {
       Object.assign(new User(), {
         idUser: 2,
         correo: 'admin@example.com',
+        activo: true,
         rol: undefined,
       }),
     );
@@ -60,7 +63,7 @@ describe('JwtStrategy', () => {
       strategy.validate({
         sub: 2,
         correo: 'admin@example.com',
-        idRol: 2,
+        codigoRol: 'CUSTOMER',
       }),
     ).rejects.toThrow(
       new UnauthorizedException('El usuario no tiene un rol asignado'),

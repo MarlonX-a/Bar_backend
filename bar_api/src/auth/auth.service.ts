@@ -7,16 +7,21 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 
 import { UsersService } from 'src/users/users.service';
-import { Rol } from '../rols/entities/rol.entity';
-import { DEFAULT_USER_ROLE_ID } from '../rols/rol.constants';
+import { RolsService } from '../rols/rols.service';
+import { DEFAULT_USER_ROLE_CODE } from '../rols/rol.constants';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { AuthSessionService, SessionMetadata } from './session.service';
+import { randomUUID } from 'node:crypto';
+import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly rolsService: RolsService,
+    private readonly authSessionService: AuthSessionService,
   ) {}
 
   async register(registerDto: RegisterDto): Promise<{ message: string }> {
@@ -26,18 +31,27 @@ export class AuthService {
     }
 
     const hashedContrasenia = await bcrypt.hash(registerDto.contrasenia, 10);
+    const defaultRole = await this.rolsService.findByCode(
+      DEFAULT_USER_ROLE_CODE,
+    );
+
     await this.usersService.create({
-      ...registerDto,
-      contrasenia: hashedContrasenia,
-      rol: { idRol: DEFAULT_USER_ROLE_ID } as Rol,
+      correo: registerDto.correo,
+      passwordHash: hashedContrasenia,
+      rol: defaultRole,
     });
 
     return { message: 'Usuario registrado correctamente' };
   }
 
-  async login(loginDto: LoginDto): Promise<{ access_token: string }> {
-    const existe = await this.usersService.findByEmail(loginDto.correo);
-    if (!existe) {
+  async login(
+    loginDto: LoginDto,
+    metadata: SessionMetadata = {},
+  ): Promise<{ access_token: string; refresh_token: string; session_id: string }> {
+    const existe = await this.usersService.findByEmailForAuthentication(
+      loginDto.correo,
+    );
+    if (!existe || !existe.activo) {
       throw new UnauthorizedException(
         'Correo electrónico o contraseña incorrectos',
       );
@@ -45,7 +59,7 @@ export class AuthService {
 
     const contraseniaValida = await bcrypt.compare(
       loginDto.contrasenia,
-      existe.contrasenia,
+      existe.passwordHash,
     );
 
     if (!contraseniaValida) {
@@ -54,14 +68,44 @@ export class AuthService {
       );
     }
 
-    const payload = {
-      correo: existe.correo,
-      sub: existe.idUser,
-      idRol: existe.rol?.idRol ?? DEFAULT_USER_ROLE_ID,
-    };
+    const session = await this.authSessionService.create(existe.idUser, metadata);
 
     return {
-      access_token: await this.jwtService.signAsync(payload),
+      access_token: await this.issueAccessToken(existe, session.session.idSession),
+      refresh_token: session.refreshToken,
+      session_id: session.session.idSession,
     };
+  }
+
+  async refresh(
+    refreshToken: string,
+    metadata: SessionMetadata = {},
+  ): Promise<{ access_token: string; refresh_token: string; session_id: string }> {
+    const rotated = await this.authSessionService.rotate(refreshToken, metadata);
+    return {
+      access_token: await this.issueAccessToken(rotated.session.user, rotated.session.idSession),
+      refresh_token: rotated.refreshToken,
+      session_id: rotated.session.idSession,
+    };
+  }
+
+  async logout(refreshToken: string): Promise<{ message: string }> {
+    await this.authSessionService.revokeByRefreshToken(refreshToken);
+    return { message: 'Sesión cerrada correctamente' };
+  }
+
+  async logoutAll(userId: number): Promise<{ message: string }> {
+    await this.authSessionService.revokeAllForUser(userId);
+    return { message: 'Todas las sesiones fueron revocadas' };
+  }
+
+  private issueAccessToken(user: User, sessionId: string): Promise<string> {
+    return this.jwtService.signAsync({
+      correo: user.correo,
+      sub: user.idUser,
+      codigoRol: user.rol.codigoRol,
+      sid: sessionId,
+      jti: randomUUID(),
+    });
   }
 }

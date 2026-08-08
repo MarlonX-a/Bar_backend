@@ -6,11 +6,14 @@ import { User } from './entities/user.entity';
 
 describe('UsersService', () => {
   let service: UsersService;
-  let userRepository: jest.Mocked<Pick<Repository<User>, 'findOne'>>;
+  let userRepository: jest.Mocked<
+    Pick<Repository<User>, 'findOne' | 'createQueryBuilder'>
+  >;
 
   beforeEach(async () => {
     userRepository = {
       findOne: jest.fn(),
+      createQueryBuilder: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -39,5 +42,23 @@ describe('UsersService', () => {
       where: { correo: 'admin@example.com' },
       relations: { rol: true },
     });
+  });
+
+  it('should select the password hash only for authentication', async () => {
+    const queryBuilder = {
+      addSelect: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue(null),
+    };
+    userRepository.createQueryBuilder.mockReturnValue(queryBuilder as never);
+
+    await service.findByEmailForAuthentication('admin@example.com');
+
+    expect(queryBuilder.addSelect).toHaveBeenCalledWith('user.passwordHash');
+    expect(queryBuilder.where).toHaveBeenCalledWith(
+      'user.correo = :correo',
+      { correo: 'admin@example.com' },
+    );
   });
 });

@@ -18,12 +18,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: configService.getOrThrow<string>('JWT_SECRET'),
+      issuer: 'cholosbar-api',
+      audience: 'cholosbar-client',
+      algorithms: ['HS256'],
     });
   }
 
   async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
     const existe = await this.usersService.findByEmail(payload.correo);
-    if (!existe) {
+    if (!existe || !existe.activo) {
       throw new UnauthorizedException('Usuario no encontrado');
     }
 
@@ -34,7 +37,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       correo: existe.correo,
       idRol: existe.rol.idRol,
+      codigoRol: existe.rol.codigoRol,
       idUser: existe.idUser,
+      sid: payload.sid,
+      jti: payload.jti,
     };
   }
 }

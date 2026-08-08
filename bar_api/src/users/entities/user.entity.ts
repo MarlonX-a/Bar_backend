@@ -1,28 +1,43 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToOne } from 'typeorm';
-import { Rol } from 'src/rols/entities/rol.entity';
-import { Perfil } from 'src/perfil/entities/perfil.entity';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { Perfil } from '../../perfil/entities/perfil.entity';
+import { Rol } from '../../rols/entities/rol.entity';
 
 @Entity('users')
 export class User {
-    @PrimaryGeneratedColumn()
-    idUser: number;
+  @PrimaryGeneratedColumn({ name: 'id_user' })
+  idUser: number;
 
-    @Column({unique: true })
-    correo: string;
+  @Column({ unique: true })
+  correo: string;
 
-    @Column()
-    contrasenia: string;
+  @Column({ name: 'password_hash', select: false })
+  passwordHash: string;
 
-    @CreateDateColumn({ type: 'timestamp'})
-    fechaCreacion: Date;
+  @Column({ default: true })
+  activo: boolean;
 
-    @UpdateDateColumn({ type: 'timestamp'})
-    fechaActualizacion: Date;
+  @Column({ name: 'perfil_completado', default: false })
+  perfilCompletado: boolean;
 
-    @ManyToOne(() => Rol, (rol) => rol.users)
-    @JoinColumn({ name: 'idRol' })
-    rol: Rol;
+  @CreateDateColumn({ name: 'fecha_creacion', type: 'timestamptz' })
+  fechaCreacion: Date;
 
-    @OneToOne(() => Perfil, (perfil) => perfil.user)
-    perfil: Perfil;
+  @UpdateDateColumn({ name: 'fecha_actualizacion', type: 'timestamptz' })
+  fechaActualizacion: Date;
+
+  @ManyToOne(() => Rol, (rol) => rol.users, { nullable: false })
+  @JoinColumn({ name: 'id_rol', referencedColumnName: 'idRol' })
+  rol: Rol;
+
+  @OneToOne(() => Perfil, (perfil) => perfil.user)
+  perfil?: Perfil;
 }

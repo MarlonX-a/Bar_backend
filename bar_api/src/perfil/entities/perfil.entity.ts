@@ -1,35 +1,41 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToOne, JoinColumn} from 'typeorm';
-import { User } from 'src/users/entities/user.entity';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  OneToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { User } from '../../users/entities/user.entity';
 
 @Entity('perfiles')
 export class Perfil {
-    @PrimaryGeneratedColumn()
-    idPerfil: number;
+  @PrimaryGeneratedColumn({ name: 'id_perfil' })
+  idPerfil: number;
 
-    @Column()
-    nombrePerfil: string;
+  @Column({ name: 'nombre_perfil' })
+  nombrePerfil: string;
 
-    @Column()
-    apellidoPerfil: string;
+  @Column({ name: 'apellido_perfil' })
+  apellidoPerfil: string;
 
-    @Column()
-    celularPerfil: string;
+  @Column({ name: 'celular_perfil' })
+  celularPerfil: string;
 
-    @Column()
-    fotoPerfil: string;
+  @Column({ name: 'foto_perfil' })
+  fotoPerfil: string;
 
-    @Column({ default: true })
-    estado: boolean;
+  @Column({ default: true })
+  estado: boolean;
 
-    @CreateDateColumn()
-    fechaDeCreacion: Date;
+  @CreateDateColumn({ name: 'fecha_creacion', type: 'timestamptz' })
+  fechaCreacion: Date;
 
-    @UpdateDateColumn()
-    fechaDeActualización: Date;
-    
-    @OneToOne(() => User, (user) => user.perfil)
-    @JoinColumn({ name: 'idUser'})
-    user: User;
+  @UpdateDateColumn({ name: 'fecha_actualizacion', type: 'timestamptz' })
+  fechaActualizacion: Date;
 
+  @OneToOne(() => User, (user) => user.perfil)
+  @JoinColumn({ name: 'id_user', referencedColumnName: 'idUser' })
+  user?: User;
 }
-

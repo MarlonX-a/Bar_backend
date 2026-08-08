@@ -58,5 +58,8 @@ export function validateEnv(
     DB_PASSWORD: requiredString(config, 'DB_PASSWORD'),
     DB_NAME: requiredString(config, 'DB_NAME'),
     JWT_SECRET: jwtSecret,
+    ACCESS_TOKEN_TTL_SECONDS: positiveInteger(config, 'ACCESS_TOKEN_TTL_SECONDS', 600),
+    REFRESH_TOKEN_TTL_DAYS: positiveInteger(config, 'REFRESH_TOKEN_TTL_DAYS', 30),
+    REFRESH_TOKEN_ABSOLUTE_DAYS: positiveInteger(config, 'REFRESH_TOKEN_ABSOLUTE_DAYS', 90),
   };
 }

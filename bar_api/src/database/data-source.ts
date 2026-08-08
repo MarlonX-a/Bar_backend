@@ -5,6 +5,7 @@ import { validateEnv } from '../config/env.validation';
 import { Perfil } from '../perfil/entities/perfil.entity';
 import { Rol } from '../rols/entities/rol.entity';
 import { User } from '../users/entities/user.entity';
+import { AuthSession } from '../auth/entities/auth-session.entity';
 
 const nodeEnv = process.env.NODE_ENV ?? 'development';
 loadEnv({ path: `.env.${nodeEnv}`, quiet: true });
@@ -19,7 +20,7 @@ export const dataSourceOptions: DataSourceOptions = {
   username: env.DB_USERNAME as string,
   password: env.DB_PASSWORD as string,
   database: env.DB_NAME as string,
-  entities: [User, Rol, Perfil],
+  entities: [User, Rol, Perfil, AuthSession],
   migrations: [join(__dirname, 'migrations/*{.js,.ts}')],
   synchronize: false,
   migrationsRun: false,

@@ -26,13 +26,13 @@ export class RolsController {
     @Request() req: AuthenticatedRequest,
     @Body() createRolDto: CreateRolDto,
   ) {
-    return this.rolsService.create(createRolDto, req.user.idRol);
+    return this.rolsService.create(createRolDto, req.user.codigoRol);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get()
   findAll(@Request() req: AuthenticatedRequest) {
-    return this.rolsService.findAll(req.user.idRol);
+    return this.rolsService.findAll(req.user.codigoRol);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -41,7 +41,7 @@ export class RolsController {
     @Request() req: AuthenticatedRequest,
     @Param('id', ParseIntPipe) id: number,
   ) {
-    return this.rolsService.findOne(id, req.user.idRol);
+    return this.rolsService.findOne(id, req.user.codigoRol);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -51,7 +51,7 @@ export class RolsController {
     @Param('id', ParseIntPipe) id: number,
     @Body() updateRolDto: UpdateRolDto,
   ) {
-    return this.rolsService.update(id, updateRolDto, req.user.idRol);
+    return this.rolsService.update(id, updateRolDto, req.user.codigoRol);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -60,6 +60,6 @@ export class RolsController {
     @Request() req: AuthenticatedRequest,
     @Param('id', ParseIntPipe) id: number,
   ) {
-    return this.rolsService.remove(id, req.user.idRol);
+    return this.rolsService.remove(id, req.user.codigoRol);
   }
 }
