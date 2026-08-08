@@ -10,6 +10,17 @@ function requiredString(config: Record<string, unknown>, key: string): string {
   return value.trim();
 }
 
+function optionalString(
+  config: Record<string, unknown>,
+  key: string,
+  fallback: string,
+): string {
+  const value = config[key];
+  return typeof value === 'string' && value.trim().length > 0
+    ? value.trim()
+    : fallback;
+}
+
 function positiveInteger(
   config: Record<string, unknown>,
   key: string,
@@ -61,5 +72,6 @@ export function validateEnv(
     ACCESS_TOKEN_TTL_SECONDS: positiveInteger(config, 'ACCESS_TOKEN_TTL_SECONDS', 600),
     REFRESH_TOKEN_TTL_DAYS: positiveInteger(config, 'REFRESH_TOKEN_TTL_DAYS', 30),
     REFRESH_TOKEN_ABSOLUTE_DAYS: positiveInteger(config, 'REFRESH_TOKEN_ABSOLUTE_DAYS', 90),
+    CORS_ORIGINS: optionalString(config, 'CORS_ORIGINS', 'http://localhost:3000'),
   };
 }

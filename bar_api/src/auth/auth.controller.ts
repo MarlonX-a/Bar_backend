@@ -6,17 +6,20 @@ import type { AuthenticatedRequest } from './interfaces/authenticated-request.in
 import { JwtAuthGuard } from './jwt/jwt-auth.guard';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import type { Request } from 'express';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
   }
 
   @Post('login')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   login(@Body() loginDto: LoginDto, @Req() req: Request) {
     return this.authService.login(loginDto, {
       userAgent: req.headers['user-agent'],
@@ -25,6 +28,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   refresh(@Body() refreshTokenDto: RefreshTokenDto, @Req() req: Request) {
     return this.authService.refresh(refreshTokenDto.refresh_token, {
       userAgent: req.headers['user-agent'],

@@ -51,6 +51,17 @@ npm run migration:revert
 
 La migración `InitialSchema1710000000000` es un baseline idempotente. En una base existente registra el estado sin recrear las tablas de negocio. Su reversión automática está bloqueada para evitar borrar datos accidentalmente.
 
+## Operación
+
+Endpoints de salud:
+
+```text
+GET /health/live   # proceso activo
+GET /health/ready  # proceso activo y PostgreSQL disponible
+```
+
+Cada respuesta HTTP incluye `X-Request-Id`. El pipeline de CI se ejecuta en `.github/workflows/ci.yml` y valida instalación reproducible, lint, build, pruebas unitarias/E2E y auditoría de dependencias de producción. Docker no forma parte del flujo actual.
+
 ## Calidad
 
 ```bash

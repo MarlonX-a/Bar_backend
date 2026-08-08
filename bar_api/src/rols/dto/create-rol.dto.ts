@@ -1,4 +1,4 @@
-import { IsString, Length, Matches } from 'class-validator';
+import { IsNotEmpty, IsString, Length, Matches, MaxLength } from 'class-validator';
 
 export class CreateRolDto {
     @IsString()
@@ -7,8 +7,12 @@ export class CreateRolDto {
     codigoRol: string;
 
     @IsString()
+    @IsNotEmpty()
+    @MaxLength(100)
     nombreRol: string;
 
     @IsString()
+    @IsNotEmpty()
+    @MaxLength(255)
     descripcionRol: string;
 }
