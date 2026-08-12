@@ -15,6 +15,11 @@ export interface IssuedRefreshSession {
   refreshToken: string;
 }
 
+interface RotationResult {
+  issued?: IssuedRefreshSession;
+  rejectedReason?: 'invalid' | 'expired' | 'reuse';
+}
+
 @Injectable()
 export class AuthSessionService {
   private readonly refreshTokenTtlDays: number;
@@ -35,8 +40,12 @@ export class AuthSessionService {
     metadata: SessionMetadata = {},
   ): Promise<IssuedRefreshSession> {
     const now = new Date();
-    const familyExpiresAt = this.addDays(now, this.refreshTokenAbsoluteDays);
-    return this.createTokenSession(userId, randomUUID(), familyExpiresAt, metadata);
+    return this.createTokenSession(
+      userId,
+      randomUUID(),
+      this.addDays(now, this.refreshTokenAbsoluteDays),
+      metadata,
+    );
   }
 
   async rotate(
@@ -44,55 +53,70 @@ export class AuthSessionService {
     metadata: SessionMetadata = {},
   ): Promise<IssuedRefreshSession> {
     const tokenHash = this.hash(rawRefreshToken);
-    return this.dataSource.transaction(async (manager) => {
-      const repository = manager.getRepository(AuthSession);
-      const current = await repository.findOne({
-        where: { refreshTokenHash: tokenHash },
-        relations: { user: { rol: true } },
-      });
+    const result = await this.dataSource.transaction(
+      async (manager): Promise<RotationResult> => {
+        const repository = manager.getRepository(AuthSession);
+        const current = await repository
+          .createQueryBuilder('session')
+          .setLock('pessimistic_write')
+          .leftJoinAndSelect('session.user', 'user')
+          .leftJoinAndSelect('user.rol', 'rol')
+          .where('session.refresh_token_hash = :tokenHash', { tokenHash })
+          .getOne();
 
-      if (!current) {
-        throw new UnauthorizedException('Refresh token inválido');
-      }
+        if (!current) {
+          return { rejectedReason: 'invalid' };
+        }
 
-      const now = new Date();
-      if (current.revokedAt) {
-        await repository
-          .createQueryBuilder()
-          .update(AuthSession)
-          .set({ revokedAt: now, revocationReason: 'refresh_token_reuse' })
-          .where('family_id = :familyId', { familyId: current.familyId })
-          .andWhere('revoked_at IS NULL')
-          .execute();
-        throw new UnauthorizedException('Refresh token inválido');
-      }
+        const now = new Date();
+        if (current.revokedAt) {
+          await repository
+            .createQueryBuilder()
+            .update(AuthSession)
+            .set({ revokedAt: now, revocationReason: 'refresh_token_reuse' })
+            .where('family_id = :familyId', { familyId: current.familyId })
+            .andWhere('revoked_at IS NULL')
+            .execute();
+          return { rejectedReason: 'reuse' };
+        }
 
-      if (
-        current.refreshTokenExpiresAt <= now ||
-        current.familyExpiresAt <= now ||
-        !current.user?.activo
-      ) {
+        if (
+          current.refreshTokenExpiresAt <= now ||
+          current.familyExpiresAt <= now ||
+          !current.user.activo
+        ) {
+          current.revokedAt = now;
+          current.revocationReason = 'expired_or_inactive';
+          await repository.save(current);
+          return { rejectedReason: 'expired' };
+        }
+
+        const next = this.buildSession(
+          current.userId,
+          current.familyId,
+          current.familyExpiresAt,
+          metadata,
+        );
+        next.session.user = current.user;
         current.revokedAt = now;
-        current.revocationReason = 'expired_or_inactive';
+        current.lastUsedAt = now;
+        current.revocationReason = 'rotated';
+        current.replacedBySessionId = next.session.idSession;
         await repository.save(current);
-        throw new UnauthorizedException('Refresh token expirado');
-      }
+        await repository.save(next.session);
+        return { issued: next };
+      },
+    );
 
-      const next = this.buildSession(
-        current.userId,
-        current.familyId,
-        current.familyExpiresAt,
-        metadata,
+    if (!result.issued) {
+      throw new UnauthorizedException(
+        result.rejectedReason === 'expired'
+          ? 'Refresh token expirado'
+          : 'Refresh token inválido',
       );
-      next.session.user = current.user;
-      current.revokedAt = now;
-      current.lastUsedAt = now;
-      current.revocationReason = 'rotated';
-      current.replacedBySessionId = next.session.idSession;
-      await repository.save(current);
-      await repository.save(next.session);
-      return next;
-    });
+    }
+
+    return result.issued;
   }
 
   async revokeByRefreshToken(rawRefreshToken: string, reason = 'logout'): Promise<void> {
@@ -115,6 +139,19 @@ export class AuthSessionService {
       .execute();
   }
 
+  async isActive(sessionId: string): Promise<boolean> {
+    const now = new Date();
+    const session = await this.sessionRepository
+      .createQueryBuilder('session')
+      .select('session.idSession')
+      .where('session.id_session = :sessionId', { sessionId })
+      .andWhere('session.revoked_at IS NULL')
+      .andWhere('session.refresh_token_expires_at > :now', { now })
+      .andWhere('session.family_expires_at > :now', { now })
+      .getOne();
+    return Boolean(session);
+  }
+
   private async createTokenSession(
     userId: number,
     familyId: string,
@@ -133,16 +170,15 @@ export class AuthSessionService {
     metadata: SessionMetadata,
   ): IssuedRefreshSession {
     const refreshToken = randomBytes(32).toString('base64url');
-    const tokenExpiresAt = this.addDays(
-      new Date(),
-      Math.min(this.refreshTokenTtlDays, this.daysUntil(familyExpiresAt)),
-    );
     const session = this.sessionRepository.create({
       idSession: randomUUID(),
       userId,
       familyId,
       refreshTokenHash: this.hash(refreshToken),
-      refreshTokenExpiresAt: tokenExpiresAt,
+      refreshTokenExpiresAt: this.addDays(
+        new Date(),
+        Math.min(this.refreshTokenTtlDays, this.daysUntil(familyExpiresAt)),
+      ),
       familyExpiresAt,
       userAgent: metadata.userAgent?.slice(0, 512),
       ipAddress: metadata.ipAddress,

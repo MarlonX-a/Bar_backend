@@ -3,6 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Perfil } from './entities/perfil.entity';
 import { PerfilService } from './perfil.service';
 import { User } from '../users/entities/user.entity';
+import { DataSource } from 'typeorm';
 
 describe('PerfilService', () => {
   let service: PerfilService;
@@ -27,6 +28,29 @@ describe('PerfilService', () => {
               Object.assign(new User(), { idUser: 1 }),
             ),
             save: jest.fn(),
+          },
+        },
+        {
+          provide: DataSource,
+          useValue: {
+            transaction: jest.fn((callback: (manager: unknown) => unknown) =>
+              callback({
+                getRepository: (entity: unknown) =>
+                  entity === User
+                    ? {
+                        findOne: jest.fn().mockResolvedValue(
+                          Object.assign(new User(), { idUser: 1 }),
+                        ),
+                        save: jest.fn(),
+                      }
+                    : {
+                        create: jest.fn(),
+                        findOne: jest.fn(),
+                        remove: jest.fn(),
+                        save: jest.fn(),
+                      },
+              }),
+            ),
           },
         },
       ],

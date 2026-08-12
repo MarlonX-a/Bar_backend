@@ -25,7 +25,8 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto): Promise<{ message: string }> {
-    const existe = await this.usersService.findByEmail(registerDto.correo);
+    const correo = registerDto.correo.trim().toLowerCase();
+    const existe = await this.usersService.findByEmail(correo);
     if (existe) {
       throw new ConflictException('El correo electrónico ya está en uso');
     }
@@ -36,7 +37,7 @@ export class AuthService {
     );
 
     await this.usersService.create({
-      correo: registerDto.correo,
+      correo,
       passwordHash: hashedContrasenia,
       rol: defaultRole,
     });

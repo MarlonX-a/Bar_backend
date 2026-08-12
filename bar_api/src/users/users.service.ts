@@ -12,7 +12,7 @@ export class UsersService {
 
   findByEmail(correo: string) {
     return this.userRepository.findOne({
-      where: { correo },
+      where: { correo: this.normalizeEmail(correo) },
       relations: { rol: true },
     });
   }
@@ -22,11 +22,27 @@ export class UsersService {
       .createQueryBuilder('user')
       .addSelect('user.passwordHash')
       .leftJoinAndSelect('user.rol', 'rol')
-      .where('user.correo = :correo', { correo })
+      .where('LOWER(user.correo) = :correo', {
+        correo: this.normalizeEmail(correo),
+      })
       .getOne();
   }
 
   create(user: Partial<User>) {
-    return this.userRepository.save(user);
+    return this.userRepository.save({
+      ...user,
+      correo: user.correo ? this.normalizeEmail(user.correo) : undefined,
+    });
+  }
+
+  findById(idUser: number) {
+    return this.userRepository.findOne({
+      where: { idUser },
+      relations: { rol: true },
+    });
+  }
+
+  private normalizeEmail(correo: string): string {
+    return correo.trim().toLowerCase();
   }
 }

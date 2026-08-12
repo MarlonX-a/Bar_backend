@@ -57,7 +57,7 @@ describe('UsersService', () => {
 
     expect(queryBuilder.addSelect).toHaveBeenCalledWith('user.passwordHash');
     expect(queryBuilder.where).toHaveBeenCalledWith(
-      'user.correo = :correo',
+      'LOWER(user.correo) = :correo',
       { correo: 'admin@example.com' },
     );
   });

@@ -3,6 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from 'src/users/users.service';
+import { AuthSessionService } from '../session.service';
 import {
   AuthenticatedUser,
   JwtPayload,
@@ -13,6 +14,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private readonly configService: ConfigService,
     private readonly usersService: UsersService,
+    private readonly authSessionService: AuthSessionService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -25,8 +27,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
-    const existe = await this.usersService.findByEmail(payload.correo);
-    if (!existe || !existe.activo) {
+    if (!payload.sid || !payload.jti) {
+      throw new UnauthorizedException('Sesión inválida');
+    }
+
+    const [existe, sessionIsActive] = await Promise.all([
+      this.usersService.findById(payload.sub),
+      this.authSessionService.isActive(payload.sid),
+    ]);
+    if (!existe || !existe.activo || !sessionIsActive) {
       throw new UnauthorizedException('Usuario no encontrado');
     }
 

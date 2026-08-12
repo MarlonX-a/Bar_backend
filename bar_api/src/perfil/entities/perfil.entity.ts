@@ -23,8 +23,8 @@ export class Perfil {
   @Column({ name: 'celular_perfil' })
   celularPerfil: string;
 
-  @Column({ name: 'foto_perfil' })
-  fotoPerfil: string;
+  @Column({ name: 'foto_perfil', nullable: true })
+  fotoPerfil?: string;
 
   @Column({ default: true })
   estado: boolean;
@@ -37,5 +37,5 @@ export class Perfil {
 
   @OneToOne(() => User, (user) => user.perfil)
   @JoinColumn({ name: 'id_user', referencedColumnName: 'idUser' })
-  user?: User;
+  user: User;
 }

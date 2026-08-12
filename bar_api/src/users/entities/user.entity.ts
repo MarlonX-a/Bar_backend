@@ -28,6 +28,12 @@ export class User {
   @Column({ name: 'perfil_completado', default: false })
   perfilCompletado: boolean;
 
+  @Column({ name: 'password_changed_at', type: 'timestamptz', nullable: true })
+  passwordChangedAt?: Date;
+
+  @Column({ name: 'email_verified_at', type: 'timestamptz', nullable: true })
+  emailVerifiedAt?: Date;
+
   @CreateDateColumn({ name: 'fecha_creacion', type: 'timestamptz' })
   fechaCreacion: Date;
 

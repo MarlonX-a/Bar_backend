@@ -5,18 +5,18 @@ export interface AuthenticatedUser {
   correo: string;
   idRol: number;
   codigoRol: string;
-  sid?: string;
-  jti?: string;
+  sid: string;
+  jti: string;
 }
 
 export interface JwtPayload {
   sub: number;
   correo: string;
   codigoRol: string;
+  sid: string;
+  jti: string;
   iat?: number;
   exp?: number;
-  sid?: string;
-  jti?: string;
 }
 
 export interface AuthenticatedRequest extends Request {
