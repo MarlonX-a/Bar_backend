@@ -8,6 +8,7 @@ export function requestLoggingMiddleware(
   next: NextFunction,
 ): void {
   const requestId = request.header('x-request-id') ?? randomUUID();
+  (request as Request & { requestId?: string }).requestId = requestId;
   const startedAt = process.hrtime.bigint();
   response.setHeader('x-request-id', requestId);
 

@@ -9,6 +9,8 @@ import { AuthService } from './../src/auth/auth.service';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import helmet from 'helmet';
+import { HttpExceptionFilter } from './../src/common/filters/http-exception.filter';
+import { requestLoggingMiddleware } from './../src/common/middleware/request-logging.middleware';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
@@ -37,6 +39,9 @@ describe('AppController (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     app.use(helmet());
+    app.use(requestLoggingMiddleware);
+    app.setGlobalPrefix('api/v1');
+    app.useGlobalFilters(new HttpExceptionFilter());
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -47,25 +52,39 @@ describe('AppController (e2e)', () => {
     await app.init();
   });
 
-  it('/ (GET)', () => {
+  it('/api/v1 (GET)', () => {
     return request(app.getHttpServer())
-      .get('/')
+      .get('/api/v1')
       .expect(200)
       .expect('Hello World!');
   });
 
   it('returns security headers', () => {
     return request(app.getHttpServer())
-      .get('/')
+      .get('/api/v1')
       .expect(200)
       .expect('X-Content-Type-Options', 'nosniff');
   });
 
   it('rejects unknown fields before reaching the controller', () => {
     return request(app.getHttpServer())
-      .post('/auth/login')
+      .post('/api/v1/auth/login')
       .send({ correo: 'user@example.com', contrasenia: 'password', extra: true })
-      .expect(400);
+      .expect(400)
+      .expect((response) => {
+        const body = response.body as {
+          statusCode?: number;
+          code?: string;
+          requestId?: unknown;
+          timestamp?: unknown;
+          path?: string;
+        };
+        expect(body.statusCode).toBe(400);
+        expect(body.code).toBe('VALIDATION_ERROR');
+        expect(typeof body.requestId).toBe('string');
+        expect(typeof body.timestamp).toBe('string');
+        expect(body.path).toBe('/api/v1/auth/login');
+      });
   });
 
   afterEach(async () => {

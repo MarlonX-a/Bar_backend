@@ -12,6 +12,8 @@ import { PerfilModule } from './perfil/perfil.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { HealthModule } from './health/health.module';
+import { AuditModule } from './audit/audit.module';
+import { IdempotencyModule } from './common/idempotency/idempotency.module';
 
 @Module({
   imports: [
@@ -47,6 +49,10 @@ import { HealthModule } from './health/health.module';
     ]),
 
     HealthModule,
+
+    AuditModule,
+
+    IdempotencyModule,
   ],
   controllers: [AppController],
   providers: [

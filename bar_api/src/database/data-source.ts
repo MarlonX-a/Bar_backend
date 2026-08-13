@@ -7,6 +7,8 @@ import { Rol } from '../rols/entities/rol.entity';
 import { User } from '../users/entities/user.entity';
 import { AuthSession } from '../auth/entities/auth-session.entity';
 import { Permission } from '../rols/entities/permission.entity';
+import { AuditEvent } from '../audit/entities/audit-event.entity';
+import { IdempotencyRecord } from '../common/idempotency/entities/idempotency-record.entity';
 
 const nodeEnv = process.env.NODE_ENV ?? 'development';
 loadEnv({ path: `.env.${nodeEnv}`, quiet: true });
@@ -21,7 +23,15 @@ export const dataSourceOptions: DataSourceOptions = {
   username: env.DB_USERNAME as string,
   password: env.DB_PASSWORD as string,
   database: env.DB_NAME as string,
-  entities: [User, Rol, Perfil, AuthSession, Permission],
+  entities: [
+    User,
+    Rol,
+    Perfil,
+    AuthSession,
+    Permission,
+    AuditEvent,
+    IdempotencyRecord,
+  ],
   migrations: [join(__dirname, 'migrations/*{.js,.ts}')],
   synchronize: false,
   migrationsRun: false,

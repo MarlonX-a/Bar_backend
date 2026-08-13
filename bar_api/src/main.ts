@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { requestLoggingMiddleware } from './common/middleware/request-logging.middleware';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 
 async function bootstrap() {
@@ -19,6 +20,8 @@ async function bootstrap() {
 
   app.use(helmet());
   app.use(requestLoggingMiddleware);
+  app.setGlobalPrefix('api/v1', { exclude: ['health/(.*)'] });
+  app.useGlobalFilters(new HttpExceptionFilter());
   app.enableCors({
     origin: corsOrigins,
     credentials: true,
