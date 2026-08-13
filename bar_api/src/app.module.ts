@@ -14,6 +14,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { HealthModule } from './health/health.module';
 import { AuditModule } from './audit/audit.module';
 import { IdempotencyModule } from './common/idempotency/idempotency.module';
+import { CatalogModule } from './catalog/catalog.module';
 
 @Module({
   imports: [
@@ -53,6 +54,8 @@ import { IdempotencyModule } from './common/idempotency/idempotency.module';
     AuditModule,
 
     IdempotencyModule,
+
+    CatalogModule,
   ],
   controllers: [AppController],
   providers: [
