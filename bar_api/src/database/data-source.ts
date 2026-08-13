@@ -9,6 +9,8 @@ import { AuthSession } from '../auth/entities/auth-session.entity';
 import { Permission } from '../rols/entities/permission.entity';
 import { AuditEvent } from '../audit/entities/audit-event.entity';
 import { IdempotencyRecord } from '../common/idempotency/entities/idempotency-record.entity';
+import { Category } from '../catalog/entities/category.entity';
+import { Product } from '../catalog/entities/product.entity';
 
 const nodeEnv = process.env.NODE_ENV ?? 'development';
 loadEnv({ path: `.env.${nodeEnv}`, quiet: true });
@@ -31,6 +33,8 @@ export const dataSourceOptions: DataSourceOptions = {
     Permission,
     AuditEvent,
     IdempotencyRecord,
+    Category,
+    Product,
   ],
   migrations: [join(__dirname, 'migrations/*{.js,.ts}')],
   synchronize: false,
