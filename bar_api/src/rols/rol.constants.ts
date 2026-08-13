@@ -1,2 +1,7 @@
 export const ADMIN_ROLE_CODE = 'ADMIN';
 export const DEFAULT_USER_ROLE_CODE = 'CUSTOMER';
+export const SYSTEM_ROLE_CODES = [
+  ADMIN_ROLE_CODE,
+  'WORKER',
+  DEFAULT_USER_ROLE_CODE,
+] as const;

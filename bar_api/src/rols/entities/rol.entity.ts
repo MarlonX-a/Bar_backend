@@ -25,6 +25,9 @@ export class Rol {
   @Column({ name: 'descripcion_rol' })
   descripcionRol: string;
 
+  @Column({ name: 'is_system', default: false })
+  isSystem: boolean;
+
   @CreateDateColumn({ name: 'fecha_creacion', type: 'timestamptz' })
   fechaCreacion: Date;
 

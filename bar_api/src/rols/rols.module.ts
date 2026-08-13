@@ -5,9 +5,10 @@ import { Rol } from './entities/rol.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PermissionsGuard } from '../auth/authorization/permissions.guard';
 import { Permission } from './entities/permission.entity';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Rol, Permission])],
+  imports: [TypeOrmModule.forFeature([Rol, Permission]), AuditModule],
   controllers: [RolsController],
   providers: [RolsService, PermissionsGuard],
   exports: [RolsService],
