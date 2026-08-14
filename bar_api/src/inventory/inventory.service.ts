@@ -1,11 +1,25 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
 import { Product } from '../catalog/entities/product.entity';
+import { IdempotencyService } from '../common/idempotency/idempotency.service';
 import { BusinessDay, BusinessDayStatus } from '../operations/entities/business-day.entity';
+import { CreateConsumptionDto } from './dto/create-consumption.dto';
+import { CreateInventoryAdjustmentDto } from './dto/create-inventory-adjustment.dto';
+import { CreateInventoryMovementDto } from './dto/create-inventory-movement.dto';
+import { ListInventoryMovementsQueryDto } from './dto/list-inventory-movements-query.dto';
 import { OpenBusinessDayDto } from './dto/open-business-day.dto';
 import { DailyInventory } from './entities/daily-inventory.entity';
+import {
+  InventoryMovement,
+  InventoryMovementType,
+} from './entities/inventory-movement.entity';
 
 @Injectable()
 export class InventoryService {
@@ -16,8 +30,11 @@ export class InventoryService {
     private readonly dailyInventoryRepository: Repository<DailyInventory>,
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+    @InjectRepository(InventoryMovement)
+    private readonly inventoryMovementRepository: Repository<InventoryMovement>,
     private readonly dataSource: DataSource,
     private readonly auditService: AuditService,
+    private readonly idempotencyService: IdempotencyService,
   ) {}
 
   async openBusinessDay(
@@ -69,6 +86,22 @@ export class InventoryService {
         }),
       );
       await manager.getRepository(DailyInventory).save(inventories);
+      const openingMovements = inventories
+        .filter((inventory) => inventory.initialQuantity > 0)
+        .map((inventory) =>
+          manager.getRepository(InventoryMovement).create({
+            dailyInventoryId: inventory.idDailyInventory,
+            movementType: InventoryMovementType.OPENING_STOCK,
+            quantityDelta: inventory.initialQuantity,
+            balanceBefore: 0,
+            balanceAfter: inventory.initialQuantity,
+            actorId,
+            observation: 'Inventario inicial de jornada',
+          }),
+        );
+      if (openingMovements.length > 0) {
+        await manager.getRepository(InventoryMovement).save(openingMovements);
+      }
       await this.auditService.record(
         {
           eventCode: 'BUSINESS_DAY_OPENED',
@@ -103,6 +136,214 @@ export class InventoryService {
     });
   }
 
+  async restock(
+    dto: CreateInventoryMovementDto,
+    actorId: number,
+    idempotencyKey: string | undefined,
+    requestId?: string,
+  ): Promise<InventoryMovement> {
+    return this.createManualMovement(
+      dto.productId,
+      dto.quantity,
+      InventoryMovementType.RESTOCK,
+      dto.observation,
+      actorId,
+      idempotencyKey,
+      requestId,
+    );
+  }
+
+  async gift(
+    dto: CreateInventoryMovementDto,
+    actorId: number,
+    idempotencyKey: string | undefined,
+    requestId?: string,
+  ): Promise<InventoryMovement> {
+    return this.createManualMovement(
+      dto.productId,
+      -dto.quantity,
+      InventoryMovementType.GIFT,
+      dto.observation,
+      actorId,
+      idempotencyKey,
+      requestId,
+    );
+  }
+
+  async consumption(
+    dto: CreateConsumptionDto,
+    actorId: number,
+    idempotencyKey: string | undefined,
+    requestId?: string,
+  ): Promise<InventoryMovement> {
+    const movementType =
+      dto.consumptionKind === 'OWNER'
+        ? InventoryMovementType.OWNER_CONSUMPTION
+        : InventoryMovementType.STAFF_CONSUMPTION;
+    return this.createManualMovement(
+      dto.productId,
+      -dto.quantity,
+      movementType,
+      dto.observation,
+      actorId,
+      idempotencyKey,
+      requestId,
+    );
+  }
+
+  async waste(
+    dto: CreateInventoryMovementDto,
+    actorId: number,
+    idempotencyKey: string | undefined,
+    requestId?: string,
+  ): Promise<InventoryMovement> {
+    return this.createManualMovement(
+      dto.productId,
+      -dto.quantity,
+      InventoryMovementType.WASTE,
+      dto.observation,
+      actorId,
+      idempotencyKey,
+      requestId,
+    );
+  }
+
+  async adjust(
+    dto: CreateInventoryAdjustmentDto,
+    actorId: number,
+    idempotencyKey: string | undefined,
+    requestId?: string,
+  ): Promise<InventoryMovement> {
+    return this.createManualMovement(
+      dto.productId,
+      dto.quantityDelta,
+      dto.quantityDelta > 0
+        ? InventoryMovementType.POSITIVE_ADJUSTMENT
+        : InventoryMovementType.NEGATIVE_ADJUSTMENT,
+      dto.observation,
+      actorId,
+      idempotencyKey,
+      requestId,
+    );
+  }
+
+  async listCurrentMovements(
+    query: ListInventoryMovementsQueryDto,
+  ): Promise<InventoryMovement[]> {
+    const businessDay = await this.getOpenBusinessDay();
+    const queryBuilder = this.inventoryMovementRepository
+      .createQueryBuilder('movement')
+      .innerJoinAndSelect('movement.dailyInventory', 'inventory')
+      .innerJoinAndSelect('inventory.product', 'product')
+      .where('inventory.business_day_id = :businessDayId', {
+        businessDayId: businessDay.idBusinessDay,
+      })
+      .orderBy('movement.created_at', 'DESC')
+      .take(query.limit)
+      .skip(query.offset);
+    if (query.productId) {
+      queryBuilder.andWhere('inventory.product_id = :productId', {
+        productId: query.productId,
+      });
+    }
+    return queryBuilder.getMany();
+  }
+
+  private async createManualMovement(
+    productId: string,
+    quantityDelta: number,
+    movementType: InventoryMovementType,
+    observation: string,
+    actorId: number,
+    idempotencyKey: string | undefined,
+    requestId?: string,
+  ): Promise<InventoryMovement> {
+    const normalizedKey = this.normalizeIdempotencyKey(idempotencyKey);
+    const normalizedObservation = observation.trim();
+    return this.dataSource.transaction(async (manager) => {
+      await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+        `inventory-movement:${actorId}:${normalizedKey}`,
+      ]);
+      const record = await this.idempotencyService.start(
+        {
+          subjectKey: `user:${actorId}`,
+          scope: 'inventory-movement',
+          key: normalizedKey,
+          request: { productId, quantityDelta, movementType, observation: normalizedObservation },
+        },
+        manager,
+        new Date(Date.now() + 24 * 60 * 60 * 1000),
+      );
+      if (record.completedAt && record.responseBody) {
+        return record.responseBody as unknown as InventoryMovement;
+      }
+
+      const inventory = await manager
+        .getRepository(DailyInventory)
+        .createQueryBuilder('inventory')
+        .setLock('pessimistic_write')
+        .innerJoinAndSelect(
+          'inventory.businessDay',
+          'businessDay',
+          'businessDay.status = :status',
+          { status: BusinessDayStatus.OPEN },
+        )
+        .where('inventory.product_id = :productId', { productId })
+        .getOne();
+      if (!inventory) {
+        throw new NotFoundException(
+          'No existe inventario diario abierto para el producto indicado',
+        );
+      }
+
+      const balanceBefore = inventory.onHandQuantity;
+      const balanceAfter = balanceBefore + quantityDelta;
+      if (balanceAfter < inventory.reservedQuantity) {
+        throw new ConflictException(
+          'La operaciÃ³n reducirÃ­a existencias ya reservadas',
+        );
+      }
+      inventory.onHandQuantity = balanceAfter;
+      await manager.getRepository(DailyInventory).save(inventory);
+      const movement = await manager.getRepository(InventoryMovement).save(
+        manager.getRepository(InventoryMovement).create({
+          dailyInventoryId: inventory.idDailyInventory,
+          movementType,
+          quantityDelta,
+          balanceBefore,
+          balanceAfter,
+          actorId,
+          observation: normalizedObservation,
+          requestId: requestId?.slice(0, 100),
+        }),
+      );
+      await this.auditService.record(
+        {
+          eventCode: 'INVENTORY_MOVEMENT_CREATED',
+          resourceType: 'inventory_movement',
+          resourceId: movement.idInventoryMovement,
+          actorId,
+          requestId,
+          metadata: {
+            movementType,
+            productId,
+            quantityDelta,
+            balanceBefore,
+            balanceAfter,
+          },
+        },
+        manager,
+      );
+      await this.idempotencyService.complete(
+        record,
+        201,
+        movement as unknown as Record<string, unknown>,
+        manager,
+      );
+      return movement;
+    });
+  }
+
   private assertCompleteOpeningInventory(
     dto: OpenBusinessDayDto,
     products: Product[],
@@ -131,5 +372,13 @@ export class InventoryService {
     }).formatToParts(new Date());
     const values = new Map(parts.map((part) => [part.type, part.value]));
     return `${values.get('year')}-${values.get('month')}-${values.get('day')}`;
+  }
+
+  private normalizeIdempotencyKey(idempotencyKey: string | undefined): string {
+    const key = idempotencyKey?.trim();
+    if (!key || key.length < 8 || key.length > 128 || !/^[A-Za-z0-9._:-]+$/.test(key)) {
+      throw new BadRequestException('Se requiere un Idempotency-Key vÃ¡lido');
+    }
+    return key;
   }
 }

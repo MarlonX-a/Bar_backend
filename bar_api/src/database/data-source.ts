@@ -15,6 +15,7 @@ import { RestaurantTable } from '../tables/entities/restaurant-table.entity';
 import { TableSession } from '../tables/entities/table-session.entity';
 import { BusinessDay } from '../operations/entities/business-day.entity';
 import { DailyInventory } from '../inventory/entities/daily-inventory.entity';
+import { InventoryMovement } from '../inventory/entities/inventory-movement.entity';
 
 const nodeEnv = process.env.NODE_ENV ?? 'development';
 loadEnv({ path: `.env.${nodeEnv}`, quiet: true });
@@ -43,6 +44,7 @@ export const dataSourceOptions: DataSourceOptions = {
     TableSession,
     BusinessDay,
     DailyInventory,
+    InventoryMovement,
   ],
   migrations: [join(__dirname, 'migrations/*{.js,.ts}')],
   synchronize: false,
