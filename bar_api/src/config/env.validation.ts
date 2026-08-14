@@ -72,6 +72,7 @@ export function validateEnv(
     ACCESS_TOKEN_TTL_SECONDS: positiveInteger(config, 'ACCESS_TOKEN_TTL_SECONDS', 600),
     REFRESH_TOKEN_TTL_DAYS: positiveInteger(config, 'REFRESH_TOKEN_TTL_DAYS', 30),
     REFRESH_TOKEN_ABSOLUTE_DAYS: positiveInteger(config, 'REFRESH_TOKEN_ABSOLUTE_DAYS', 90),
+    TABLE_SESSION_TTL_MINUTES: positiveInteger(config, 'TABLE_SESSION_TTL_MINUTES', 240),
     CORS_ORIGINS: optionalString(config, 'CORS_ORIGINS', 'http://localhost:3000'),
   };
 }
