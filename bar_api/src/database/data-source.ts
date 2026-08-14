@@ -11,6 +11,11 @@ import { AuditEvent } from '../audit/entities/audit-event.entity';
 import { IdempotencyRecord } from '../common/idempotency/entities/idempotency-record.entity';
 import { Category } from '../catalog/entities/category.entity';
 import { Product } from '../catalog/entities/product.entity';
+import { RestaurantTable } from '../tables/entities/restaurant-table.entity';
+import { TableSession } from '../tables/entities/table-session.entity';
+import { BusinessDay } from '../operations/entities/business-day.entity';
+import { DailyInventory } from '../inventory/entities/daily-inventory.entity';
+import { InventoryMovement } from '../inventory/entities/inventory-movement.entity';
 
 const nodeEnv = process.env.NODE_ENV ?? 'development';
 loadEnv({ path: `.env.${nodeEnv}`, quiet: true });
@@ -35,6 +40,11 @@ export const dataSourceOptions: DataSourceOptions = {
     IdempotencyRecord,
     Category,
     Product,
+    RestaurantTable,
+    TableSession,
+    BusinessDay,
+    DailyInventory,
+    InventoryMovement,
   ],
   migrations: [join(__dirname, 'migrations/*{.js,.ts}')],
   synchronize: false,

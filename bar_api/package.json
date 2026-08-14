@@ -4,7 +4,7 @@
   "description": "",
   "author": "",
   "private": true,
-  "packageManager": "npm@10.9.2",
+  "packageManager": "bun@1.3.14",
   "engines": {
     "node": ">=22.0.0"
   },
@@ -19,14 +19,14 @@
     "lint": "eslint \"{src,test}/**/*.ts\"",
     "lint:fix": "eslint \"{src,test}/**/*.ts\" --fix",
     "test": "jest",
-    "test:all": "npm test -- --runInBand && npm run test:e2e",
+    "test:all": "bun run test -- --runInBand && bun run test:e2e",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "migration:show": "npm run build && typeorm migration:show -d dist/database/data-source.js",
-    "migration:run": "npm run build && typeorm migration:run -d dist/database/data-source.js",
-    "migration:revert": "npm run build && typeorm migration:revert -d dist/database/data-source.js"
+    "migration:show": "bun run build && typeorm migration:show -d dist/database/data-source.js",
+    "migration:run": "bun run build && typeorm migration:run -d dist/database/data-source.js",
+    "migration:revert": "bun run build && typeorm migration:revert -d dist/database/data-source.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

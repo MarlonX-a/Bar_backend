@@ -15,6 +15,8 @@ import { HealthModule } from './health/health.module';
 import { AuditModule } from './audit/audit.module';
 import { IdempotencyModule } from './common/idempotency/idempotency.module';
 import { CatalogModule } from './catalog/catalog.module';
+import { TablesModule } from './tables/tables.module';
+import { InventoryModule } from './inventory/inventory.module';
 
 @Module({
   imports: [
@@ -56,6 +58,10 @@ import { CatalogModule } from './catalog/catalog.module';
     IdempotencyModule,
 
     CatalogModule,
+
+    TablesModule,
+
+    InventoryModule,
   ],
   controllers: [AppController],
   providers: [
