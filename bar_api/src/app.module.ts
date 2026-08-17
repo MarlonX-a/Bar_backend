@@ -17,6 +17,7 @@ import { IdempotencyModule } from './common/idempotency/idempotency.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { TablesModule } from './tables/tables.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { OrdersModule } from './orders/orders.module';
 
 @Module({
   imports: [
@@ -62,6 +63,8 @@ import { InventoryModule } from './inventory/inventory.module';
     TablesModule,
 
     InventoryModule,
+
+    OrdersModule,
   ],
   controllers: [AppController],
   providers: [
