@@ -12,7 +12,7 @@ import { TableSession } from '../tables/entities/table-session.entity';
 import { TablesService } from '../tables/tables.service';
 import { OrderItem } from './entities/order-item.entity';
 import { InventoryEffectStatus } from './entities/order-item.entity';
-import { Order, OrderStatus } from './entities/order.entity';
+import { Order, OrderOrigin, OrderStatus } from './entities/order.entity';
 import { OrderStatusHistory } from './entities/order-status-history.entity';
 import { OrdersService } from './orders.service';
 
@@ -190,6 +190,26 @@ describe('OrdersService', () => {
     expect(orderRepository.save).not.toHaveBeenCalled();
   });
 
+  it('creates a manual order with the catalog price and responsible worker', async () => {
+    const order = await service.createManualOrder(
+      { items: [{ productId: dailyInventory.productId, quantity: 2 }] },
+      7,
+      'manual-order-001',
+    );
+
+    expect(orderRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        origin: OrderOrigin.MANUAL,
+        createdById: 7,
+        totalCents: 1000,
+      }),
+    );
+    expect(order.items[0]).toEqual(
+      expect.objectContaining({ unitPriceCents: 500, subtotalCents: 1000 }),
+    );
+    expect(dailyInventory.reservedQuantity).toBe(3);
+  });
+
   it('consumes the reservation and writes an APP_SALE movement on delivery', async () => {
     dailyInventory.onHandQuantity = 5;
     dailyInventory.reservedQuantity = 2;
@@ -251,6 +271,32 @@ describe('OrdersService', () => {
     expect(item.inventoryEffectStatus).toBe(InventoryEffectStatus.WASTED);
     expect(inventoryMovementRepository.save).toHaveBeenCalledWith([
       expect.objectContaining({ movementType: 'WASTE', quantityDelta: -2 }),
+    ]);
+  });
+
+  it('writes a MANUAL_SALE movement when a manual order is delivered', async () => {
+    dailyInventory.onHandQuantity = 5;
+    dailyInventory.reservedQuantity = 2;
+    const item = {
+      idOrderItem: 'f7c9c4a5-2f1c-4fd4-9f21-1b2a3c4d5e6f',
+      productId: dailyInventory.productId,
+      quantity: 2,
+      inventoryEffectStatus: InventoryEffectStatus.RESERVED,
+    };
+    const order = {
+      idOrder: 'c7c9c4a5-2f1c-4fd4-9f21-1b2a3c4d5e6f',
+      businessDayId: dailyInventory.businessDayId,
+      origin: OrderOrigin.MANUAL,
+      status: OrderStatus.READY,
+      items: [item],
+    };
+    orderRepository.findOne.mockResolvedValue(order);
+    orderRepository.save.mockResolvedValue(order);
+
+    await service.transition(order.idOrder, { targetStatus: OrderStatus.DELIVERED }, 7);
+
+    expect(inventoryMovementRepository.save).toHaveBeenCalledWith([
+      expect.objectContaining({ movementType: 'MANUAL_SALE', quantityDelta: -2 }),
     ]);
   });
 });

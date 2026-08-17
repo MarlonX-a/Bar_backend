@@ -13,6 +13,7 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { CreateAppOrderDto } from './dto/create-app-order.dto';
+import { CreateManualOrderDto } from './dto/create-manual-order.dto';
 import { CancelOrderDto, CancelOrderExceptionDto } from './dto/cancel-order.dto';
 import { ListOwnOrdersQueryDto } from './dto/list-own-orders-query.dto';
 import { ListOperationalOrdersQueryDto } from './dto/list-operational-orders-query.dto';
@@ -41,6 +42,23 @@ export class OrdersController {
       tableSessionToken,
       idempotencyKey,
       (req as Request & { requestId?: string }).requestId,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PermissionCode.ORDER_CREATE_MANUAL)
+  @Post('manual')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  createManualOrder(
+    @Body() dto: CreateManualOrderDto,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.ordersService.createManualOrder(
+      dto,
+      req.user.idUser,
+      idempotencyKey,
+      this.requestId(req),
     );
   }
 

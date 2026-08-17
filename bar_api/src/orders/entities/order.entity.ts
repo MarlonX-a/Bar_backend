@@ -35,6 +35,7 @@ export enum OrderStatus {
 @Entity('orders')
 @Index('idx_orders_business_day_status', ['businessDayId', 'status'])
 @Index('idx_orders_table_session_created', ['tableSessionId', 'createdAt'])
+@Index('idx_orders_created_by_created', ['createdById', 'createdAt'])
 @Check('CHK_orders_total_cents_non_negative', 'total_cents >= 0')
 export class Order {
   @PrimaryGeneratedColumn('uuid', { name: 'id_order' })
@@ -53,6 +54,13 @@ export class Order {
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'user_id', referencedColumnName: 'idUser' })
   user?: User;
+
+  @Column({ name: 'created_by_id', nullable: true })
+  createdById?: number;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'created_by_id', referencedColumnName: 'idUser' })
+  createdBy?: User;
 
   @Column({ name: 'table_id', type: 'uuid', nullable: true })
   tableId?: string;

@@ -7,6 +7,7 @@ import { DailyInventory } from '../inventory/entities/daily-inventory.entity';
 import { BusinessDay } from '../operations/entities/business-day.entity';
 import { RolsModule } from '../rols/rols.module';
 import { TableSession } from '../tables/entities/table-session.entity';
+import { RestaurantTable } from '../tables/entities/restaurant-table.entity';
 import { TablesModule } from '../tables/tables.module';
 import { OrderItem } from './entities/order-item.entity';
 import { Order } from './entities/order.entity';
@@ -24,6 +25,7 @@ import { OrdersService } from './orders.service';
       DailyInventory,
       BusinessDay,
       TableSession,
+      RestaurantTable,
     ]),
     TablesModule,
     RolsModule,
