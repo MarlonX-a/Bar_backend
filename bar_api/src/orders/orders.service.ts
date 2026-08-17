@@ -10,6 +10,10 @@ import { AuditService } from '../audit/audit.service';
 import { Product } from '../catalog/entities/product.entity';
 import { IdempotencyService } from '../common/idempotency/idempotency.service';
 import { DailyInventory } from '../inventory/entities/daily-inventory.entity';
+import {
+  InventoryMovement,
+  InventoryMovementType,
+} from '../inventory/entities/inventory-movement.entity';
 import { BusinessDay, BusinessDayStatus } from '../operations/entities/business-day.entity';
 import { TableSession } from '../tables/entities/table-session.entity';
 import { TablesService } from '../tables/tables.service';
@@ -17,6 +21,10 @@ import { CreateAppOrderDto } from './dto/create-app-order.dto';
 import { ListOwnOrdersQueryDto } from './dto/list-own-orders-query.dto';
 import { InventoryEffectStatus, OrderItem } from './entities/order-item.entity';
 import { Order, OrderOrigin, OrderStatus } from './entities/order.entity';
+import { OrderStatusHistory } from './entities/order-status-history.entity';
+import { CancelOrderDto, CancelOrderExceptionDto } from './dto/cancel-order.dto';
+import { ListOperationalOrdersQueryDto } from './dto/list-operational-orders-query.dto';
+import { TransitionOrderDto } from './dto/transition-order.dto';
 
 @Injectable()
 export class OrdersService {
@@ -176,6 +184,15 @@ export class OrdersService {
         [...inventoriesByProductId.values()],
       );
       order.items = savedItems;
+      await this.recordStatusHistory(
+        manager,
+        order.idOrder,
+        undefined,
+        OrderStatus.PENDING,
+        undefined,
+        'Pedido creado desde la aplicaciÃ³n',
+        requestId,
+      );
       await this.auditService.record(
         {
           eventCode: 'APP_ORDER_CREATED',
@@ -214,6 +231,155 @@ export class OrdersService {
     });
   }
 
+  async listOperationalOrders(
+    query: ListOperationalOrdersQueryDto,
+  ): Promise<Order[]> {
+    return this.orderRepository.find({
+      where: query.status ? { status: query.status } : undefined,
+      relations: { items: true, table: true },
+      order: { createdAt: 'ASC' },
+      take: query.limit,
+      skip: query.offset,
+    });
+  }
+
+  async getStatusHistory(id: string): Promise<OrderStatusHistory[]> {
+    const order = await this.orderRepository.findOne({ where: { idOrder: id } });
+    if (!order) {
+      throw new NotFoundException('El pedido no existe');
+    }
+    return this.dataSource.getRepository(OrderStatusHistory).find({
+      where: { orderId: id },
+      relations: { actor: true },
+      order: { createdAt: 'ASC' },
+    });
+  }
+
+  async transition(
+    id: string,
+    dto: TransitionOrderDto,
+    actorId: number,
+    requestId?: string,
+  ): Promise<Order> {
+    return this.dataSource.transaction(async (manager) => {
+      const order = await this.lockOrder(manager, id);
+      this.assertAllowedTransition(order.status, dto.targetStatus);
+      if (dto.targetStatus === OrderStatus.REJECTED) {
+        await this.releaseReservations(manager, order, actorId, 'RETURN_TO_STOCK');
+      }
+      if (dto.targetStatus === OrderStatus.DELIVERED) {
+        await this.consumeReservations(manager, order, actorId, requestId);
+      }
+      const previousStatus = order.status;
+      order.status = dto.targetStatus;
+      const updated = await manager.getRepository(Order).save(order);
+      await this.recordStatusHistory(
+        manager,
+        updated.idOrder,
+        previousStatus,
+        updated.status,
+        actorId,
+        dto.reason?.trim(),
+        requestId,
+      );
+      await this.auditService.record(
+        {
+          eventCode: 'ORDER_STATUS_CHANGED',
+          resourceType: 'order',
+          resourceId: updated.idOrder,
+          actorId,
+          requestId,
+          metadata: { previousStatus, nextStatus: updated.status },
+        },
+        manager,
+      );
+      return updated;
+    });
+  }
+
+  async cancelOwnPendingOrder(
+    id: string,
+    dto: CancelOrderDto,
+    rawTableSessionToken: string | undefined,
+    requestId?: string,
+  ): Promise<Order> {
+    const tableSession = await this.resolveTableSession(rawTableSessionToken);
+    return this.dataSource.transaction(async (manager) => {
+      const order = await this.lockOrder(manager, id);
+      if (order.tableSessionId !== tableSession.idTableSession) {
+        throw new NotFoundException('El pedido no existe');
+      }
+      if (order.status !== OrderStatus.PENDING) {
+        throw new ConflictException('Solo se pueden cancelar pedidos pendientes');
+      }
+      await this.releaseReservations(manager, order, undefined, 'RETURN_TO_STOCK');
+      const previousStatus = order.status;
+      order.status = OrderStatus.CANCELLED;
+      const updated = await manager.getRepository(Order).save(order);
+      await this.recordStatusHistory(
+        manager,
+        updated.idOrder,
+        previousStatus,
+        updated.status,
+        undefined,
+        dto.reason.trim(),
+        requestId,
+      );
+      await this.auditService.record(
+        {
+          eventCode: 'ORDER_CANCELLED_BY_CUSTOMER',
+          resourceType: 'order',
+          resourceId: updated.idOrder,
+          requestId,
+          metadata: { previousStatus },
+        },
+        manager,
+      );
+      return updated;
+    });
+  }
+
+  async cancelException(
+    id: string,
+    dto: CancelOrderExceptionDto,
+    actorId: number,
+    requestId?: string,
+  ): Promise<Order> {
+    return this.dataSource.transaction(async (manager) => {
+      const order = await this.lockOrder(manager, id);
+      if (![OrderStatus.PREPARING, OrderStatus.READY].includes(order.status)) {
+        throw new ConflictException(
+          'La cancelaciÃ³n excepcional solo aplica a pedidos en preparaciÃ³n o listos',
+        );
+      }
+      await this.releaseReservations(manager, order, actorId, dto.resolution, requestId);
+      const previousStatus = order.status;
+      order.status = OrderStatus.CANCELLED;
+      const updated = await manager.getRepository(Order).save(order);
+      await this.recordStatusHistory(
+        manager,
+        updated.idOrder,
+        previousStatus,
+        updated.status,
+        actorId,
+        dto.reason.trim(),
+        requestId,
+      );
+      await this.auditService.record(
+        {
+          eventCode: 'ORDER_CANCELLED_EXCEPTIONALLY',
+          resourceType: 'order',
+          resourceId: updated.idOrder,
+          actorId,
+          requestId,
+          metadata: { previousStatus, resolution: dto.resolution },
+        },
+        manager,
+      );
+      return updated;
+    });
+  }
+
   private async lockInventories(
     manager: EntityManager,
     businessDayId: string,
@@ -231,6 +397,181 @@ export class OrdersService {
       .orderBy('inventory.product_id', 'ASC')
       .getMany();
     return new Map(inventories.map((inventory) => [inventory.productId, inventory]));
+  }
+
+  private async lockOrder(manager: EntityManager, id: string): Promise<Order> {
+    const order = await manager.getRepository(Order).findOne({
+      where: { idOrder: id },
+      relations: { items: true },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!order) {
+      throw new NotFoundException('El pedido no existe');
+    }
+    return order;
+  }
+
+  private assertAllowedTransition(
+    current: OrderStatus,
+    target: TransitionOrderDto['targetStatus'],
+  ): void {
+    const transitions: Partial<Record<OrderStatus, OrderStatus[]>> = {
+      [OrderStatus.PENDING]: [OrderStatus.ACCEPTED, OrderStatus.REJECTED],
+      [OrderStatus.ACCEPTED]: [OrderStatus.PREPARING],
+      [OrderStatus.PREPARING]: [OrderStatus.READY],
+      [OrderStatus.READY]: [OrderStatus.DELIVERED],
+    };
+    if (!transitions[current]?.includes(target)) {
+      throw new ConflictException('La transiciÃ³n de estado solicitada no estÃ¡ permitida');
+    }
+  }
+
+  private async releaseReservations(
+    manager: EntityManager,
+    order: Order,
+    actorId: number | undefined,
+    resolution: 'RETURN_TO_STOCK' | 'WASTE',
+    requestId?: string,
+  ): Promise<void> {
+    const reservedItems = order.items.filter(
+      (item) => item.inventoryEffectStatus === InventoryEffectStatus.RESERVED,
+    );
+    const inventories = await this.lockOrderInventories(manager, order, reservedItems);
+    const inventoriesByProductId = new Map(
+      inventories.map((inventory) => [inventory.productId, inventory]),
+    );
+    const wasteMovements: InventoryMovement[] = [];
+    for (const item of reservedItems) {
+      const inventory = inventoriesByProductId.get(item.productId);
+      if (!inventory || inventory.reservedQuantity < item.quantity) {
+        throw new ConflictException('La reserva de inventario del pedido es inconsistente');
+      }
+      const balanceBefore = inventory.onHandQuantity;
+      inventory.reservedQuantity -= item.quantity;
+      if (resolution === 'WASTE') {
+        if (actorId === undefined || inventory.onHandQuantity < item.quantity) {
+          throw new ConflictException('No se puede registrar el desperdicio solicitado');
+        }
+        inventory.onHandQuantity -= item.quantity;
+        item.inventoryEffectStatus = InventoryEffectStatus.WASTED;
+        wasteMovements.push(
+          manager.getRepository(InventoryMovement).create({
+            dailyInventoryId: inventory.idDailyInventory,
+            orderId: order.idOrder,
+            orderItemId: item.idOrderItem,
+            movementType: InventoryMovementType.WASTE,
+            quantityDelta: -item.quantity,
+            balanceBefore,
+            balanceAfter: inventory.onHandQuantity,
+            actorId,
+            observation: 'CancelaciÃ³n de pedido: desperdicio',
+            requestId: requestId?.slice(0, 100),
+          }),
+        );
+      } else {
+        item.inventoryEffectStatus = InventoryEffectStatus.RELEASED;
+      }
+    }
+    await manager.getRepository(DailyInventory).save(inventories);
+    await manager.getRepository(OrderItem).save(reservedItems);
+    if (wasteMovements.length > 0) {
+      await manager.getRepository(InventoryMovement).save(wasteMovements);
+    }
+  }
+
+  private async consumeReservations(
+    manager: EntityManager,
+    order: Order,
+    actorId: number,
+    requestId?: string,
+  ): Promise<void> {
+    const reservedItems = order.items.filter(
+      (item) => item.inventoryEffectStatus === InventoryEffectStatus.RESERVED,
+    );
+    const inventories = await this.lockOrderInventories(manager, order, reservedItems);
+    const inventoriesByProductId = new Map(
+      inventories.map((inventory) => [inventory.productId, inventory]),
+    );
+    const saleMovements: InventoryMovement[] = [];
+    for (const item of reservedItems) {
+      const inventory = inventoriesByProductId.get(item.productId);
+      if (
+        !inventory ||
+        inventory.reservedQuantity < item.quantity ||
+        inventory.onHandQuantity < item.quantity
+      ) {
+        throw new ConflictException('La reserva de inventario del pedido es inconsistente');
+      }
+      const balanceBefore = inventory.onHandQuantity;
+      inventory.reservedQuantity -= item.quantity;
+      inventory.onHandQuantity -= item.quantity;
+      item.inventoryEffectStatus = InventoryEffectStatus.CONSUMED;
+      saleMovements.push(
+        manager.getRepository(InventoryMovement).create({
+          dailyInventoryId: inventory.idDailyInventory,
+          orderId: order.idOrder,
+          orderItemId: item.idOrderItem,
+          movementType: InventoryMovementType.APP_SALE,
+          quantityDelta: -item.quantity,
+          balanceBefore,
+          balanceAfter: inventory.onHandQuantity,
+          actorId,
+          observation: 'Pedido APP entregado',
+          requestId: requestId?.slice(0, 100),
+        }),
+      );
+    }
+    await manager.getRepository(DailyInventory).save(inventories);
+    await manager.getRepository(OrderItem).save(reservedItems);
+    if (saleMovements.length > 0) {
+      await manager.getRepository(InventoryMovement).save(saleMovements);
+    }
+  }
+
+  private async lockOrderInventories(
+    manager: EntityManager,
+    order: Order,
+    items: OrderItem[],
+  ): Promise<DailyInventory[]> {
+    if (items.length === 0) {
+      return [];
+    }
+    const productIds = items.map((item) => item.productId).sort();
+    const inventories = await manager
+      .getRepository(DailyInventory)
+      .createQueryBuilder('inventory')
+      .setLock('pessimistic_write')
+      .where('inventory.business_day_id = :businessDayId', {
+        businessDayId: order.businessDayId,
+      })
+      .andWhere('inventory.product_id IN (:...productIds)', { productIds })
+      .orderBy('inventory.product_id', 'ASC')
+      .getMany();
+    if (inventories.length !== productIds.length) {
+      throw new ConflictException('No se encontrÃ³ el inventario reservado del pedido');
+    }
+    return inventories;
+  }
+
+  private async recordStatusHistory(
+    manager: EntityManager,
+    orderId: string,
+    previousStatus: OrderStatus | undefined,
+    nextStatus: OrderStatus,
+    actorId: number | undefined,
+    reason: string | undefined,
+    requestId: string | undefined,
+  ): Promise<void> {
+    await manager.getRepository(OrderStatusHistory).save(
+      manager.getRepository(OrderStatusHistory).create({
+        orderId,
+        previousStatus,
+        nextStatus,
+        actorId,
+        reason,
+        requestId: requestId?.slice(0, 100),
+      }),
+    );
   }
 
   private async resolveTableSession(

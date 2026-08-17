@@ -14,6 +14,7 @@ export enum InventoryEffectStatus {
   RESERVED = 'RESERVED',
   CONSUMED = 'CONSUMED',
   RELEASED = 'RELEASED',
+  WASTED = 'WASTED',
   NOT_TRACKED = 'NOT_TRACKED',
 }
 
