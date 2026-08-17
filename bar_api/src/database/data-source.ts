@@ -16,6 +16,10 @@ import { TableSession } from '../tables/entities/table-session.entity';
 import { BusinessDay } from '../operations/entities/business-day.entity';
 import { DailyInventory } from '../inventory/entities/daily-inventory.entity';
 import { InventoryMovement } from '../inventory/entities/inventory-movement.entity';
+import { Order } from '../orders/entities/order.entity';
+import { OrderItem } from '../orders/entities/order-item.entity';
+import { OrderStatusHistory } from '../orders/entities/order-status-history.entity';
+import { Payment } from '../payments/entities/payment.entity';
 
 const nodeEnv = process.env.NODE_ENV ?? 'development';
 loadEnv({ path: `.env.${nodeEnv}`, quiet: true });
@@ -45,6 +49,10 @@ export const dataSourceOptions: DataSourceOptions = {
     BusinessDay,
     DailyInventory,
     InventoryMovement,
+    Order,
+    OrderItem,
+    OrderStatusHistory,
+    Payment,
   ],
   migrations: [join(__dirname, 'migrations/*{.js,.ts}')],
   synchronize: false,

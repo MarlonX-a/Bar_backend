@@ -10,6 +10,8 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { DailyInventory } from './daily-inventory.entity';
+import { Order } from '../../orders/entities/order.entity';
+import { OrderItem } from '../../orders/entities/order-item.entity';
 
 export enum InventoryMovementType {
   OPENING_STOCK = 'OPENING_STOCK',
@@ -40,6 +42,20 @@ export class InventoryMovement {
   @ManyToOne(() => DailyInventory, { nullable: false, onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'daily_inventory_id', referencedColumnName: 'idDailyInventory' })
   dailyInventory: DailyInventory;
+
+  @Column({ name: 'order_id', type: 'uuid', nullable: true })
+  orderId?: string;
+
+  @ManyToOne(() => Order, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'order_id', referencedColumnName: 'idOrder' })
+  order?: Order;
+
+  @Column({ name: 'order_item_id', type: 'uuid', nullable: true })
+  orderItemId?: string;
+
+  @ManyToOne(() => OrderItem, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'order_item_id', referencedColumnName: 'idOrderItem' })
+  orderItem?: OrderItem;
 
   @Column({ name: 'movement_type', length: 32 })
   movementType: InventoryMovementType;
