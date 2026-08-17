@@ -19,6 +19,7 @@ import { TablesModule } from './tables/tables.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
+import { CashModule } from './cash/cash.module';
 
 @Module({
   imports: [
@@ -68,6 +69,8 @@ import { PaymentsModule } from './payments/payments.module';
     OrdersModule,
 
     PaymentsModule,
+
+    CashModule,
   ],
   controllers: [AppController],
   providers: [
