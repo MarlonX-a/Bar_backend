@@ -18,6 +18,7 @@ import { CatalogModule } from './catalog/catalog.module';
 import { TablesModule } from './tables/tables.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { OrdersModule } from './orders/orders.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -65,6 +66,8 @@ import { OrdersModule } from './orders/orders.module';
     InventoryModule,
 
     OrdersModule,
+
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [

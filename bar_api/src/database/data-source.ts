@@ -19,6 +19,7 @@ import { InventoryMovement } from '../inventory/entities/inventory-movement.enti
 import { Order } from '../orders/entities/order.entity';
 import { OrderItem } from '../orders/entities/order-item.entity';
 import { OrderStatusHistory } from '../orders/entities/order-status-history.entity';
+import { Payment } from '../payments/entities/payment.entity';
 
 const nodeEnv = process.env.NODE_ENV ?? 'development';
 loadEnv({ path: `.env.${nodeEnv}`, quiet: true });
@@ -51,6 +52,7 @@ export const dataSourceOptions: DataSourceOptions = {
     Order,
     OrderItem,
     OrderStatusHistory,
+    Payment,
   ],
   migrations: [join(__dirname, 'migrations/*{.js,.ts}')],
   synchronize: false,
