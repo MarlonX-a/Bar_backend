@@ -10,6 +10,8 @@ import { AuditService } from '../audit/audit.service';
 import { Product } from '../catalog/entities/product.entity';
 import { IdempotencyService } from '../common/idempotency/idempotency.service';
 import { BusinessDay, BusinessDayStatus } from '../operations/entities/business-day.entity';
+import { Order, OrderStatus } from '../orders/entities/order.entity';
+import { CashSession, CashSessionStatus } from '../cash/entities/cash-session.entity';
 import { CreateConsumptionDto } from './dto/create-consumption.dto';
 import { CreateInventoryAdjustmentDto } from './dto/create-inventory-adjustment.dto';
 import { CreateInventoryMovementDto } from './dto/create-inventory-movement.dto';
@@ -133,6 +135,59 @@ export class InventoryService {
       where: { businessDayId: businessDay.idBusinessDay },
       relations: { product: true },
       order: { product: { name: 'ASC' } },
+    });
+  }
+
+  async closeBusinessDay(actorId: number, requestId?: string): Promise<BusinessDay> {
+    return this.dataSource.transaction(async (manager) => {
+      const businessDay = await manager.getRepository(BusinessDay).findOne({
+        where: { status: BusinessDayStatus.OPEN },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!businessDay) {
+        throw new NotFoundException('No existe una jornada operativa abierta');
+      }
+      const activeOrder = await manager.getRepository(Order).findOne({
+        where: [
+          { businessDayId: businessDay.idBusinessDay, status: OrderStatus.PENDING },
+          { businessDayId: businessDay.idBusinessDay, status: OrderStatus.ACCEPTED },
+          { businessDayId: businessDay.idBusinessDay, status: OrderStatus.PREPARING },
+          { businessDayId: businessDay.idBusinessDay, status: OrderStatus.READY },
+        ],
+        lock: { mode: 'pessimistic_read' },
+      });
+      if (activeOrder) {
+        throw new ConflictException('No se puede cerrar la jornada con pedidos activos');
+      }
+      const inventories = await manager.getRepository(DailyInventory).find({
+        where: { businessDayId: businessDay.idBusinessDay },
+        lock: { mode: 'pessimistic_read' },
+      });
+      if (inventories.some((inventory) => inventory.reservedQuantity > 0)) {
+        throw new ConflictException('No se puede cerrar la jornada con inventario reservado');
+      }
+      const cashSession = await manager.getRepository(CashSession).findOne({
+        where: { businessDayId: businessDay.idBusinessDay },
+        lock: { mode: 'pessimistic_read' },
+      });
+      if (cashSession?.status === CashSessionStatus.OPEN) {
+        throw new ConflictException('No se puede cerrar la jornada con la caja abierta');
+      }
+      businessDay.status = BusinessDayStatus.CLOSED;
+      businessDay.closedById = actorId;
+      businessDay.closedAt = new Date();
+      const closedBusinessDay = await manager.getRepository(BusinessDay).save(businessDay);
+      await this.auditService.record(
+        {
+          eventCode: 'BUSINESS_DAY_CLOSED',
+          resourceType: 'business_day',
+          resourceId: closedBusinessDay.idBusinessDay,
+          actorId,
+          requestId,
+        },
+        manager,
+      );
+      return closedBusinessDay;
     });
   }
 

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { RolsService } from './rols.service';
 import { RolsController } from './rols.controller';
 import { Rol } from './entities/rol.entity';
@@ -8,7 +8,7 @@ import { Permission } from './entities/permission.entity';
 import { AuditModule } from '../audit/audit.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Rol, Permission]), AuditModule],
+  imports: [TypeOrmModule.forFeature([Rol, Permission]), forwardRef(() => AuditModule)],
   controllers: [RolsController],
   providers: [RolsService, PermissionsGuard],
   exports: [RolsService],

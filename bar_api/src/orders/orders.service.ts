@@ -55,7 +55,9 @@ export class OrdersService {
   ): Promise<Order> {
     const tableSession = await this.resolveTableSession(rawTableSessionToken);
     const normalizedKey = this.normalizeIdempotencyKey(idempotencyKey);
-    const productIds = dto.items.map((item) => item.productId).sort();
+    const productIds = dto.items
+      .map((item) => item.productId)
+      .sort((left, right) => left.localeCompare(right));
     if (new Set(productIds).size !== productIds.length) {
       throw new BadRequestException('Un producto solo puede aparecer una vez en el pedido');
     }
@@ -115,7 +117,7 @@ export class OrdersService {
       const trackedProductIds = products
         .filter((product) => product.trackInventory)
         .map((product) => product.idProduct)
-        .sort();
+        .sort((left, right) => left.localeCompare(right));
       const inventoriesByProductId = await this.lockInventories(
         manager,
         businessDay.idBusinessDay,
@@ -226,7 +228,9 @@ export class OrdersService {
     requestId?: string,
   ): Promise<Order> {
     const normalizedKey = this.normalizeIdempotencyKey(idempotencyKey);
-    const productIds = dto.items.map((item) => item.productId).sort();
+    const productIds = dto.items
+      .map((item) => item.productId)
+      .sort((left, right) => left.localeCompare(right));
     if (new Set(productIds).size !== productIds.length) {
       throw new BadRequestException('Un producto solo puede aparecer una vez en el pedido');
     }
@@ -261,7 +265,8 @@ export class OrdersService {
       if (products.length !== productIds.length) throw new NotFoundException('Uno o más productos no están disponibles');
       const productsById = new Map(products.map((product) => [product.idProduct, product]));
       const trackedProductIds = products.filter((product) => product.trackInventory)
-        .map((product) => product.idProduct).sort();
+        .map((product) => product.idProduct)
+        .sort((left, right) => left.localeCompare(right));
       const inventoriesByProductId = await this.lockInventories(manager, businessDay.idBusinessDay, trackedProductIds);
       const requestedByProductId = new Map(dto.items.map((item) => [item.productId, item.quantity]));
       for (const productId of trackedProductIds) {
@@ -633,7 +638,9 @@ export class OrdersService {
     if (items.length === 0) {
       return [];
     }
-    const productIds = items.map((item) => item.productId).sort();
+    const productIds = items
+      .map((item) => item.productId)
+      .sort((left, right) => left.localeCompare(right));
     const inventories = await manager
       .getRepository(DailyInventory)
       .createQueryBuilder('inventory')

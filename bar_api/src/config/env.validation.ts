@@ -21,6 +21,18 @@ function optionalString(
     : fallback;
 }
 
+function optionalBoolean(
+  config: Record<string, unknown>,
+  key: string,
+  fallback: boolean,
+): boolean {
+  const rawValue = config[key];
+  if (rawValue === undefined || rawValue === '') return fallback;
+  if (rawValue === true || rawValue === 'true') return true;
+  if (rawValue === false || rawValue === 'false') return false;
+  throw new Error(`Environment variable ${key} must be true or false`);
+}
+
 function positiveInteger(
   config: Record<string, unknown>,
   key: string,
@@ -74,5 +86,7 @@ export function validateEnv(
     REFRESH_TOKEN_ABSOLUTE_DAYS: positiveInteger(config, 'REFRESH_TOKEN_ABSOLUTE_DAYS', 90),
     TABLE_SESSION_TTL_MINUTES: positiveInteger(config, 'TABLE_SESSION_TTL_MINUTES', 240),
     CORS_ORIGINS: optionalString(config, 'CORS_ORIGINS', 'http://localhost:3000'),
+    TRUST_PROXY: optionalBoolean(config, 'TRUST_PROXY', false),
+    OPENAPI_ENABLED: optionalBoolean(config, 'OPENAPI_ENABLED', nodeEnv !== 'production'),
   };
 }

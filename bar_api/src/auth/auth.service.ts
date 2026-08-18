@@ -52,7 +52,7 @@ export class AuthService {
     const existe = await this.usersService.findByEmailForAuthentication(
       loginDto.correo,
     );
-    if (!existe || !existe.activo) {
+    if (!existe?.activo) {
       throw new UnauthorizedException(
         'Correo electrónico o contraseña incorrectos',
       );

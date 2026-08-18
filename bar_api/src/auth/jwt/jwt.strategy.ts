@@ -35,7 +35,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       this.usersService.findById(payload.sub),
       this.authSessionService.isActive(payload.sid),
     ]);
-    if (!existe || !existe.activo || !sessionIsActive) {
+    if (!existe?.activo || !sessionIsActive) {
       throw new UnauthorizedException('Usuario no encontrado');
     }
 

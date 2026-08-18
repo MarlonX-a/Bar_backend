@@ -18,9 +18,13 @@ async function bootstrap() {
     .map((origin) => origin.trim())
     .filter(Boolean);
 
+  if (configService.getOrThrow<boolean>('TRUST_PROXY')) {
+    app.set('trust proxy', 1);
+  }
+
   app.use(helmet());
   app.use(requestLoggingMiddleware);
-  app.setGlobalPrefix('api/v1', { exclude: ['health/(.*)'] });
+  app.setGlobalPrefix('api/v1', { exclude: ['health/(.*)', 'docs/(.*)'] });
   app.useGlobalFilters(new HttpExceptionFilter());
   app.enableCors({
     origin: corsOrigins,
@@ -30,7 +34,7 @@ async function bootstrap() {
   });
   app.useBodyParser('json', { limit: '100kb' });
   app.useBodyParser('urlencoded', { limit: '100kb', extended: true });
-  app.enableShutdownHooks();
+  app.enableShutdownHooks(['SIGINT', 'SIGTERM']);
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
