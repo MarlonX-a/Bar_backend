@@ -2,6 +2,7 @@ import {
   ConflictException,
   Injectable,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -14,6 +15,10 @@ import { RegisterDto } from './dto/register.dto';
 import { AuthSessionService, SessionMetadata } from './session.service';
 import { randomUUID } from 'node:crypto';
 import { User } from '../users/entities/user.entity';
+import { PasswordResetToken } from './entities/password-reset-token.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import { IsNull, Repository } from 'typeorm';
+import { createHash, randomBytes } from 'node:crypto';
 
 @Injectable()
 export class AuthService {
@@ -22,6 +27,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly rolsService: RolsService,
     private readonly authSessionService: AuthSessionService,
+    @InjectRepository(PasswordResetToken)
+    private readonly passwordResetRepository: Repository<PasswordResetToken>,
   ) {}
 
   async register(registerDto: RegisterDto): Promise<{ message: string }> {
@@ -99,6 +106,40 @@ export class AuthService {
     await this.authSessionService.revokeAllForUser(userId);
     return { message: 'Todas las sesiones fueron revocadas' };
   }
+
+  async changePassword(userId: number, currentPassword: string, newPassword: string): Promise<{ message: string }> {
+    const user = await this.usersService.findById(userId);
+    if (!user) throw new UnauthorizedException('Usuario no encontrado');
+    const authenticated = await this.usersService.findByEmailForAuthentication(user.correo);
+    if (!authenticated || !(await bcrypt.compare(currentPassword, authenticated.passwordHash))) throw new UnauthorizedException('Contraseña actual incorrecta');
+    if (await bcrypt.compare(newPassword, authenticated.passwordHash)) throw new BadRequestException('La nueva contraseña debe ser diferente');
+    await this.usersService.updatePassword(userId, await bcrypt.hash(newPassword, 10));
+    await this.authSessionService.revokeAllForUser(userId, 'password_changed');
+    return { message: 'Contraseña actualizada; inicia sesión nuevamente' };
+  }
+
+  async requestPasswordReset(email: string): Promise<{ message: string }> {
+    const user = await this.usersService.findByEmail(email);
+    if (user?.activo) {
+      const token = randomBytes(32).toString('base64url');
+      await this.passwordResetRepository.update({ userId: user.idUser, usedAt: IsNull() }, { usedAt: new Date() });
+      await this.passwordResetRepository.save(this.passwordResetRepository.create({ userId: user.idUser, tokenHash: this.hashToken(token), expiresAt: new Date(Date.now() + 15 * 60 * 1000) }));
+      if (process.env.NODE_ENV !== 'production') console.info(`Password reset token for ${user.correo}: ${token}`);
+    }
+    return { message: 'Si el correo existe, recibirá instrucciones para restablecer la contraseña' };
+  }
+
+  async confirmPasswordReset(token: string, newPassword: string): Promise<{ message: string }> {
+    const reset = await this.passwordResetRepository.findOne({ where: { tokenHash: this.hashToken(token) }, relations: { user: true } });
+    if (!reset || reset.usedAt || reset.expiresAt <= new Date() || !reset.user.activo) throw new UnauthorizedException('El token de recuperación no es válido');
+    await this.usersService.updatePassword(reset.userId, await bcrypt.hash(newPassword, 10));
+    reset.usedAt = new Date();
+    await this.passwordResetRepository.save(reset);
+    await this.authSessionService.revokeAllForUser(reset.userId, 'password_reset');
+    return { message: 'Contraseña restablecida; inicia sesión nuevamente' };
+  }
+
+  private hashToken(token: string): string { return createHash('sha256').update(token).digest('hex'); }
 
   private issueAccessToken(user: User, sessionId: string): Promise<string> {
     return this.jwtService.signAsync({

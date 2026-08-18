@@ -42,6 +42,10 @@ export class UsersService {
     });
   }
 
+  async updatePassword(userId: number, passwordHash: string): Promise<void> {
+    await this.userRepository.update(userId, { passwordHash, passwordChangedAt: new Date() });
+  }
+
   private normalizeEmail(correo: string): string {
     return correo.trim().toLowerCase();
   }
