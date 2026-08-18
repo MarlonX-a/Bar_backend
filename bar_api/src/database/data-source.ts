@@ -21,6 +21,7 @@ import { OrderItem } from '../orders/entities/order-item.entity';
 import { OrderStatusHistory } from '../orders/entities/order-status-history.entity';
 import { Payment } from '../payments/entities/payment.entity';
 import { CashSession } from '../cash/entities/cash-session.entity';
+import { PasswordResetToken } from '../auth/entities/password-reset-token.entity';
 
 const nodeEnv = process.env.NODE_ENV ?? 'development';
 loadEnv({ path: `.env.${nodeEnv}`, quiet: true });
@@ -55,6 +56,7 @@ export const dataSourceOptions: DataSourceOptions = {
     OrderStatusHistory,
     Payment,
     CashSession,
+    PasswordResetToken,
   ],
   migrations: [join(__dirname, 'migrations/*{.js,.ts}')],
   synchronize: false,

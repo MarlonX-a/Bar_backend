@@ -8,6 +8,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './jwt/jwt.strategy';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthSession } from './entities/auth-session.entity';
+import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { AuthSessionService } from './session.service';
 
 @Module({
@@ -15,7 +16,7 @@ import { AuthSessionService } from './session.service';
     ConfigModule,
     UsersModule,
     RolsModule,
-    TypeOrmModule.forFeature([AuthSession]),
+    TypeOrmModule.forFeature([AuthSession, PasswordResetToken]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

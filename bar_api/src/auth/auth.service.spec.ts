@@ -8,6 +8,8 @@ import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
 import { AuthSessionService } from './session.service';
 import { AuthSession } from './entities/auth-session.entity';
+import { PasswordResetToken } from './entities/password-reset-token.entity';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 
 describe('AuthService', () => {
@@ -61,6 +63,7 @@ describe('AuthService', () => {
           provide: AuthSessionService,
           useValue: sessionServiceMock,
         },
+        { provide: getRepositoryToken(PasswordResetToken), useValue: { create: jest.fn(), save: jest.fn(), update: jest.fn(), findOne: jest.fn() } },
       ],
     }).compile();
 
