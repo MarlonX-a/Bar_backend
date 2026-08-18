@@ -21,6 +21,7 @@ import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
 import { CashModule } from './cash/cash.module';
 import { ReportsModule } from './reports/reports.module';
+import { DocsModule } from './docs/docs.module';
 
 @Module({
   imports: [
@@ -74,6 +75,8 @@ import { ReportsModule } from './reports/reports.module';
     CashModule,
 
     ReportsModule,
+
+    DocsModule,
   ],
   controllers: [AppController],
   providers: [

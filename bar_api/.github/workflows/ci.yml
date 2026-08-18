@@ -33,19 +33,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: 22
-          cache: npm
+          bun-version: 1.3.14
       - name: Install dependencies
-        run: npm ci
+        run: bun install --frozen-lockfile
       - name: Lint
-        run: npm run lint
+        run: bun run lint
       - name: Build
-        run: npm run build
+        run: bun run build
       - name: Unit and isolated E2E tests
-        run: npm run test:all
+        run: bun run test:all
       - name: PostgreSQL migration and constraint tests
         env:
           RUN_DATABASE_INTEGRATION: 'true'
@@ -56,6 +55,6 @@ jobs:
           DB_PASSWORD: postgres
           DB_NAME: bar_api_test
           JWT_SECRET: integration-test-secret-that-is-long-enough
-        run: npm run test:integration
+        run: bun run test:integration
       - name: Production dependency audit
-        run: npm audit --omit=dev --audit-level=high
+        run: bun audit --audit-level=critical
