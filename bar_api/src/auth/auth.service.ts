@@ -13,12 +13,11 @@ import { DEFAULT_USER_ROLE_CODE } from '../rols/rol.constants';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { AuthSessionService, SessionMetadata } from './session.service';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { User } from '../users/entities/user.entity';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
-import { createHash, randomBytes } from 'node:crypto';
 
 @Injectable()
 export class AuthService {
