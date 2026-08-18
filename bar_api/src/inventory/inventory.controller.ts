@@ -35,6 +35,13 @@ export class InventoryController {
   }
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PermissionCode.BUSINESS_DAY_CLOSE)
+  @Post('business-days/close')
+  close(@Req() req: AuthenticatedRequest) {
+    return this.inventoryService.closeBusinessDay(req.user.idUser, this.requestId(req));
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(PermissionCode.INVENTORY_READ)
   @Get('business-days/current')
   getCurrent() {

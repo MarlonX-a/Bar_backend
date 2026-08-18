@@ -6,6 +6,8 @@ import { AuditService } from '../audit/audit.service';
 import { Product } from '../catalog/entities/product.entity';
 import { IdempotencyService } from '../common/idempotency/idempotency.service';
 import { BusinessDay } from '../operations/entities/business-day.entity';
+import { Order } from '../orders/entities/order.entity';
+import { CashSession } from '../cash/entities/cash-session.entity';
 import { DailyInventory } from './entities/daily-inventory.entity';
 import { InventoryMovement } from './entities/inventory-movement.entity';
 import { InventoryService } from './inventory.service';
@@ -17,10 +19,13 @@ describe('InventoryService', () => {
   let dailyInventoryRepository: {
     create: jest.Mock;
     save: jest.Mock;
+    find: jest.Mock;
     createQueryBuilder: jest.Mock;
   };
   let inventoryMovementRepository: { create: jest.Mock; save: jest.Mock };
   let idempotencyService: { start: jest.Mock; complete: jest.Mock };
+  let orderRepository: { findOne: jest.Mock };
+  let cashSessionRepository: { findOne: jest.Mock };
   let inventoryQueryBuilder: {
     setLock: jest.Mock;
     innerJoinAndSelect: jest.Mock;
@@ -41,6 +46,7 @@ describe('InventoryService', () => {
         idDailyInventory: 'd7c9c4a5-2f1c-4fd4-9f21-1b2a3c4d5e6f',
       })),
       save: jest.fn(),
+      find: jest.fn().mockResolvedValue([]),
       createQueryBuilder: jest.fn(),
     };
     inventoryQueryBuilder = {
@@ -60,6 +66,8 @@ describe('InventoryService', () => {
       start: jest.fn().mockResolvedValue({}),
       complete: jest.fn(),
     };
+    orderRepository = { findOne: jest.fn().mockResolvedValue(null) };
+    cashSessionRepository = { findOne: jest.fn().mockResolvedValue(null) };
     const manager = {
       query: jest.fn(),
       getRepository: jest.fn((entity: unknown) => {
@@ -71,6 +79,12 @@ describe('InventoryService', () => {
         }
         if (entity === InventoryMovement) {
           return inventoryMovementRepository;
+        }
+        if (entity === Order) {
+          return orderRepository;
+        }
+        if (entity === CashSession) {
+          return cashSessionRepository;
         }
         return dailyInventoryRepository;
       }),
@@ -98,6 +112,8 @@ describe('InventoryService', () => {
           provide: getRepositoryToken(InventoryMovement),
           useValue: { find: jest.fn(), createQueryBuilder: jest.fn() },
         },
+        { provide: getRepositoryToken(Order), useValue: orderRepository },
+        { provide: getRepositoryToken(CashSession), useValue: cashSessionRepository },
         {
           provide: DataSource,
           useValue: { transaction },
@@ -173,5 +189,30 @@ describe('InventoryService', () => {
       ),
     ).rejects.toThrow(ConflictException);
     expect(idempotencyService.complete).not.toHaveBeenCalled();
+  });
+
+  it('closes a business day only when there are no active orders, reservations or open cash session', async () => {
+    const businessDay = {
+      idBusinessDay: 'a7c9c4a5-2f1c-4fd4-9f21-1b2a3c4d5e6f',
+      status: 'OPEN',
+    };
+    businessDayRepository.findOne.mockResolvedValue(businessDay);
+    businessDayRepository.save.mockResolvedValue(businessDay);
+
+    const closed = await service.closeBusinessDay(7, 'request-close-001');
+
+    expect(closed.status).toBe('CLOSED');
+    expect(closed.closedById).toBe(7);
+    expect(closed.closedAt).toBeInstanceOf(Date);
+  });
+
+  it('rejects closing a business day while an order remains active', async () => {
+    businessDayRepository.findOne.mockResolvedValue({
+      idBusinessDay: 'a7c9c4a5-2f1c-4fd4-9f21-1b2a3c4d5e6f',
+      status: 'OPEN',
+    });
+    orderRepository.findOne.mockResolvedValue({ idOrder: 'pending-order' });
+
+    await expect(service.closeBusinessDay(7)).rejects.toThrow(ConflictException);
   });
 });

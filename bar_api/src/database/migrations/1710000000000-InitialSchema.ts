@@ -111,8 +111,7 @@ export class InitialSchema1710000000000 implements MigrationInterface {
     }
   }
 
-  down(queryRunner: QueryRunner): Promise<void> {
-    void queryRunner;
+  down(): Promise<void> {
     return Promise.reject(
       new Error(
         'The initial schema migration is a baseline and cannot be reverted automatically',
