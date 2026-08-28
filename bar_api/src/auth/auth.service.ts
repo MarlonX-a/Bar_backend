@@ -18,6 +18,7 @@ import { User } from '../users/entities/user.entity';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
+import type { AuthenticatedUser } from './interfaces/authenticated-request.interface';
 
 @Injectable()
 export class AuthService {
@@ -29,6 +30,19 @@ export class AuthService {
     @InjectRepository(PasswordResetToken)
     private readonly passwordResetRepository: Repository<PasswordResetToken>,
   ) {}
+
+  /**
+   * Perfil de sesión enriquecido con los códigos de permiso efectivos del rol.
+   * El frontend los usa para decidir qué secciones y acciones muestra, en lugar
+   * de mantener su propia copia del mapa rol -> permisos.
+   */
+  async getSessionProfile(user: AuthenticatedUser): Promise<AuthenticatedUser & { permissions: string[] }> {
+    const role = await this.rolsService.findByCodeWithPermissions(user.codigoRol);
+    return {
+      ...user,
+      permissions: (role.permissions ?? []).map((permission) => permission.codigoPermiso),
+    };
+  }
 
   async register(registerDto: RegisterDto): Promise<{ message: string }> {
     const correo = registerDto.correo.trim().toLowerCase();

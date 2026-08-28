@@ -30,7 +30,16 @@ async function bootstrap() {
     origin: corsOrigins,
     credentials: true,
     methods: ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+    // Idempotency-Key guards order and inventory writes against retries;
+    // X-Table-Session authenticates a diner's QR session. Both are required by
+    // the API, so a cross-origin client must be allowed to send them.
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-CSRF-Token',
+      'Idempotency-Key',
+      'X-Table-Session',
+    ],
   });
   app.useBodyParser('json', { limit: '100kb' });
   app.useBodyParser('urlencoded', { limit: '100kb', extended: true });

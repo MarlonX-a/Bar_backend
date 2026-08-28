@@ -70,6 +70,6 @@ export class AuthController {
   @Get('profile')
   @UseGuards(JwtAuthGuard)
   profile(@Req() req: AuthenticatedRequest) {
-    return req.user;
+    return this.authService.getSessionProfile(req.user);
   }
 }

@@ -45,6 +45,18 @@ export class PerfilService {
     });
   }
 
+  /**
+   * Perfil del usuario autenticado. Devuelve null en lugar de 404 cuando todavía
+   * no existe, para que el cliente sepa que debe crearlo en vez de tratarlo como
+   * un error de carga.
+   */
+  async findMine(idUser: number): Promise<Perfil | null> {
+    return this.perfilRepository.findOne({
+      where: { user: { idUser } },
+      relations: { user: true },
+    });
+  }
+
   async findOne(id: number, idUser: number) {
     return this.findOwned(id, idUser);
   }

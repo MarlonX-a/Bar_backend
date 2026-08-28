@@ -35,6 +35,13 @@ export class PerfilController {
 
   @UseGuards(JwtAuthGuard, PermissionsGuard)
   @RequirePermissions(PermissionCode.PROFILE_READ_SELF)
+  @Get('me')
+  findMine(@Request() req: AuthenticatedRequest) {
+    return this.perfilService.findMine(req.user.idUser);
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(PermissionCode.PROFILE_READ_SELF)
   @Get(':id')
   findOne(
     @Request() req: AuthenticatedRequest,
