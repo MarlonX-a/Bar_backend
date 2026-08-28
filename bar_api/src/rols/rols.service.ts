@@ -130,14 +130,22 @@ export class RolsService {
 
     return this.dataSource.transaction(async (manager) => {
       const roles = manager.getRepository(Rol);
+      // Locking with `relations` would emit FOR UPDATE over a LEFT JOIN, which
+      // Postgres rejects. Lock the role row first, then load its permissions.
       const lockedRole = await roles.findOne({
         where: { idRol: id },
-        relations: { permissions: true },
         lock: { mode: 'pessimistic_write' },
       });
       if (!lockedRole) {
         throw new NotFoundException(`El rol con el id ${id} no existe`);
       }
+      lockedRole.permissions =
+        (
+          await roles.findOne({
+            where: { idRol: id },
+            relations: { permissions: true },
+          })
+        )?.permissions ?? [];
       this.assertMutable(lockedRole);
       lockedRole.permissions = permissions;
       const updated = await roles.save(lockedRole);

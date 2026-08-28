@@ -496,14 +496,20 @@ export class OrdersService {
   }
 
   private async lockOrder(manager: EntityManager, id: string): Promise<Order> {
-    const order = await manager.getRepository(Order).findOne({
+    const repository = manager.getRepository(Order);
+    // Postgres refuses FOR UPDATE on the nullable side of an outer join, and
+    // loading `items` here would make TypeORM emit exactly that. Lock the order
+    // row on its own, then read the items under the same transaction.
+    const order = await repository.findOne({
       where: { idOrder: id },
-      relations: { items: true },
       lock: { mode: 'pessimistic_write' },
     });
     if (!order) {
       throw new NotFoundException('El pedido no existe');
     }
+    order.items = await manager.getRepository(OrderItem).find({
+      where: { orderId: order.idOrder },
+    });
     return order;
   }
 

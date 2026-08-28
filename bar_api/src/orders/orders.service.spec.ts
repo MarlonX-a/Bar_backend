@@ -66,6 +66,10 @@ describe('OrdersService', () => {
     const orderItemRepository = {
       create: jest.fn((value: unknown) => value),
       save: jest.fn((items: unknown) => Promise.resolve(items)),
+      // lockOrder reads the items separately, because locking them in the same
+      // query would emit FOR UPDATE over a LEFT JOIN and Postgres rejects that.
+      // Mirror the items each test attached to the order it stubs.
+      find: jest.fn(async () => (await orderRepository.findOne())?.items ?? []),
     };
     inventoryMovementRepository = {
       create: jest.fn((value: unknown) => value),

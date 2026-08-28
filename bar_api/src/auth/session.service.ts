@@ -58,7 +58,12 @@ export class AuthSessionService {
         const repository = manager.getRepository(AuthSession);
         const current = await repository
           .createQueryBuilder('session')
-          .setLock('pessimistic_write')
+          // Lock only the session row being rotated. A bare FOR UPDATE is
+          // rejected by Postgres here ("FOR UPDATE cannot be applied to the
+          // nullable side of an outer join"), and widening the lock to the
+          // joined tables would contend on the shared role row on every
+          // refresh.
+          .setLock('pessimistic_write', undefined, ['session'])
           .leftJoinAndSelect('session.user', 'user')
           .leftJoinAndSelect('user.rol', 'rol')
           .where('session.refresh_token_hash = :tokenHash', { tokenHash })
